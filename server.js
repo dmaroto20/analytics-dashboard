@@ -19,8 +19,15 @@ let storedTokens = null;
 
 // Auth - redirigir a Google
 app.get('/auth/login', (req, res) => {
-  const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${CLIENT_ID}&redirect_uri=${REDIRECT_URI}&response_type=code&scope=https://www.googleapis.com/auth/analytics.readonly&access_type=offline&prompt=consent`;
-  res.redirect(url);
+  const params = new URLSearchParams({
+    client_id: CLIENT_ID,
+    redirect_uri: REDIRECT_URI,
+    response_type: 'code',
+    scope: 'https://www.googleapis.com/auth/analytics.readonly',
+    access_type: 'offline',
+    prompt: 'consent'
+  });
+  res.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${params}`);
 });
 
 // Auth - callback de Google
