@@ -163,8 +163,8 @@ app.get('/api/top-pages', async (req, res) => {
       `https://analyticsdata.googleapis.com/v1beta/properties/${propertyId}:runReport`,
       {
         dateRanges: [{ startDate: dateRange.startDate, endDate: dateRange.endDate }],
-        dimensions: [{ name: 'pagePathAndQueryString' }],
-        metrics: [{ name: 'screenPageViews' }, { name: 'activeUsers' }, { name: 'bounceRate' }],
+        dimensions: [{ name: 'pagePath' }],
+        metrics: [{ name: 'screenPageViews' }, { name: 'activeUsers' }, { name: 'engagementRate' }],
         orderBys: [{ metric: { metricName: 'screenPageViews' }, desc: true }],
         limit: 10
       },
@@ -175,7 +175,7 @@ app.get('/api/top-pages', async (req, res) => {
       page: row.dimensionValues?.[0]?.value || '',
       views: parseInt(row.metricValues?.[0]?.value) || 0,
       users: parseInt(row.metricValues?.[1]?.value) || 0,
-      bounceRate: ((parseFloat(row.metricValues?.[2]?.value) || 0) * 100).toFixed(2)
+      engagementRate: ((parseFloat(row.metricValues?.[2]?.value) || 0) * 100).toFixed(2)
     })));
   } catch (err) {
     res.status(500).json({ error: err.message });

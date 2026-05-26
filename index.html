@@ -239,9 +239,9 @@
         <div style="overflow-x:auto">
           <table>
             <thead><tr>
-              <th>Página</th><th>Vistas</th><th>Usuarios</th><th>Rebote</th>
+              <th>Página</th><th>Vistas</th><th>Usuarios</th><th>Engagement</th>
             </tr></thead>
-            <tbody id="table-pages"></tbody>
+            <tbody id="table-pages"><tr><td colspan="4" style="text-align:center;color:#64748b;padding:24px">Cargando...</td></tr></tbody>
           </table>
         </div>
       </div>
@@ -393,13 +393,17 @@
 
     // Top pages table
     const tbody = document.getElementById('table-pages');
-    tbody.innerHTML = topPages.map(p => `
-      <tr>
-        <td>${escHtml(p.page)}</td>
-        <td>${(p.views || 0).toLocaleString()}</td>
-        <td>${(p.users || 0).toLocaleString()}</td>
-        <td class="bounce">${p.bounceRate}%</td>
-      </tr>`).join('');
+    if (!topPages.length) {
+      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#64748b;padding:24px">Sin datos para este período</td></tr>';
+    } else {
+      tbody.innerHTML = topPages.map(p => `
+        <tr>
+          <td>${escHtml(p.page)}</td>
+          <td>${(p.views || 0).toLocaleString()}</td>
+          <td>${(p.users || 0).toLocaleString()}</td>
+          <td class="bounce">${p.engagementRate}%</td>
+        </tr>`).join('');
+    }
 
     setLoading(false);
   }
