@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Analytics Dashboard</title>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Outfit', sans-serif; background: linear-gradient(135deg, #0f172a, #1e293b, #0f172a); min-height: 100vh; color: #f1f5f9; }
+
+    /* ── Auth screens ── */
+    .auth-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 16px; }
+    .auth-card {
+      width: 100%; max-width: 440px;
+      background: linear-gradient(135deg, rgba(59,130,246,0.08), rgba(16,185,129,0.05));
+      border: 1px solid rgba(59,130,246,0.3); border-radius: 16px; padding: 40px;
+    }
+    .auth-icon { display: inline-flex; padding: 14px; background: rgba(59,130,246,0.15); border-radius: 12px; margin-bottom: 16px; }
+    .auth-title { font-size: 28px; font-weight: 700; margin-bottom: 6px; }
+    .auth-sub { color: #94a3b8; font-size: 14px; margin-bottom: 32px; }
+    .field-label { display: block; color: #cbd5e1; font-size: 13px; font-weight: 500; margin-bottom: 8px; }
+    .field-input {
+      width: 100%; padding: 12px 16px; background: #1e293b;
+      border: 1px solid #334155; border-radius: 8px;
+      color: #f1f5f9; font-size: 16px; font-family: inherit; outline: none; transition: border-color .2s;
+    }
+    .field-input:focus { border-color: #3b82f6; }
+    .btn-primary {
+      width: 100%; padding: 14px; margin-top: 16px; cursor: pointer; font-family: inherit;
+      background: linear-gradient(135deg, #3b82f6, #06b6d4);
+      border: none; border-radius: 8px; color: white; font-size: 16px; font-weight: 600; transition: opacity .2s;
+    }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+    .error-box { margin-top: 12px; padding: 10px 14px; background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); border-radius: 8px; color: #f87171; font-size: 14px; }
+
+    /* ── Dashboard ── */
+    #dashboard { display: none; }
+    .header {
+      position: sticky; top: 0; z-index: 50;
+      background: rgba(15,23,42,0.88); backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(59,130,246,0.2); padding: 16px 24px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .header-title { font-size: 22px; font-weight: 700; }
+    .header-sub { font-size: 13px; color: #64748b; margin-top: 2px; }
+    .header-actions { display: flex; gap: 10px; }
+    .btn-icon {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 8px 16px; border-radius: 8px; cursor: pointer; font-family: inherit;
+      font-size: 14px; font-weight: 500; border: 1px solid; transition: opacity .2s;
+    }
+    .btn-refresh { background: rgba(59,130,246,0.1); border-color: rgba(59,130,246,0.4); color: #60a5fa; }
+    .btn-logout  { background: rgba(239,68,68,0.1); border-color: rgba(239,68,68,0.3); color: #f87171; }
+
+    .main { max-width: 1280px; margin: 0 auto; padding: 32px 24px; }
+
+    /* GA auth banner */
+    .ga-banner {
+      display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+      padding: 18px 22px; margin-bottom: 24px;
+      background: rgba(251,191,36,0.08); border: 1px solid rgba(251,191,36,0.3); border-radius: 12px;
+    }
+    .ga-banner-text { flex: 1; }
+    .ga-banner-title { color: #fcd34d; font-weight: 600; margin-bottom: 4px; }
+    .ga-banner-desc  { color: #94a3b8; font-size: 13px; }
+    .btn-ga-auth {
+      padding: 10px 20px; background: linear-gradient(135deg, #3b82f6, #06b6d4);
+      color: white; border-radius: 8px; text-decoration: none;
+      font-weight: 600; font-size: 14px; white-space: nowrap; border: none; cursor: pointer;
+    }
+
+    /* Range buttons */
+    .range-bar { display: flex; gap: 10px; margin-bottom: 28px; }
+    .btn-range {
+      padding: 8px 18px; border-radius: 8px; cursor: pointer; font-family: inherit;
+      font-size: 14px; font-weight: 500; border: 1px solid #334155;
+      background: rgba(30,41,59,0.8); color: #94a3b8; transition: all .2s;
+    }
+    .btn-range.active { background: #3b82f6; border-color: #3b82f6; color: white; }
+
+    /* Loading / error states */
+    .state-box { text-align: center; padding: 60px 0; color: #64748b; }
+    .state-box .icon { font-size: 42px; margin-bottom: 14px; }
+    .error-banner { padding: 14px 18px; background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.3); border-radius: 10px; color: #f87171; font-size: 14px; margin-bottom: 20px; }
+
+    /* KPI grid */
+    .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 16px; margin-bottom: 28px; }
+    .kpi-card {
+      background: linear-gradient(135deg, rgba(59,130,246,0.08), rgba(16,185,129,0.04));
+      border: 1px solid rgba(59,130,246,0.25); border-radius: 12px; padding: 18px;
+    }
+    .kpi-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: #64748b; margin-bottom: 8px; display: flex; justify-content: space-between; }
+    .kpi-value {
+      font-family: 'Space Mono', monospace; font-weight: 700; font-size: 24px;
+      background: linear-gradient(135deg, #3b82f6, #10b981);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+
+    /* Charts row */
+    .charts-row { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; margin-bottom: 28px; }
+    @media (max-width: 768px) { .charts-row { grid-template-columns: 1fr; } }
+    .card {
+      background: linear-gradient(135deg, rgba(30,41,59,0.85), rgba(15,23,42,0.85));
+      border: 1px solid rgba(59,130,246,0.2); border-radius: 12px; padding: 24px;
+    }
+    .card-title { font-size: 15px; font-weight: 600; margin-bottom: 18px; color: #f1f5f9; }
+    .chart-wrap { position: relative; height: 260px; }
+
+    /* Top pages table */
+    .table-card { margin-bottom: 28px; }
+    table { width: 100%; border-collapse: collapse; }
+    thead tr { border-bottom: 1px solid #1e293b; }
+    th { padding: 10px 14px; color: #64748b; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; }
+    th:first-child { text-align: left; }
+    th:not(:first-child) { text-align: right; }
+    tbody tr { border-bottom: 1px solid rgba(30,41,59,0.6); transition: background .15s; }
+    tbody tr:hover { background: rgba(59,130,246,0.05); }
+    td { padding: 12px 14px; font-size: 14px; }
+    td:first-child { color: #e2e8f0; font-family: monospace; max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    td:not(:first-child) { text-align: right; color: #cbd5e1; }
+    td.bounce { color: #fb923c; font-weight: 600; }
+
+    .spin { display: inline-block; animation: spin 1s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+<!-- ── PIN CREATE ── -->
+<div id="screen-pin-create" class="auth-wrap">
+  <div class="auth-card">
+    <div style="text-align:center">
+      <div class="auth-icon">
+        <svg width="32" height="32" fill="none" stroke="#60a5fa" stroke-width="2" viewBox="0 0 24 24">
+          <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+        </svg>
+      </div>
+      <div class="auth-title">Analytics Dashboard</div>
+      <div class="auth-sub">Crea un PIN para proteger el acceso</div>
+    </div>
+    <label class="field-label">PIN de acceso (mín. 4 dígitos)</label>
+    <input id="pin-create-input" class="field-input" type="password" placeholder="Ingresa tu PIN" autocomplete="new-password" />
+    <div id="pin-create-error" class="error-box" style="display:none"></div>
+    <button class="btn-primary" onclick="submitCreatePin()">Crear PIN</button>
+  </div>
+</div>
+
+<!-- ── PIN ENTER ── -->
+<div id="screen-pin-enter" class="auth-wrap" style="display:none">
+  <div class="auth-card">
+    <div style="text-align:center">
+      <div class="auth-icon">
+        <svg width="32" height="32" fill="none" stroke="#60a5fa" stroke-width="2" viewBox="0 0 24 24">
+          <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+        </svg>
+      </div>
+      <div class="auth-title">Acceso Requerido</div>
+      <div class="auth-sub">Ingresa tu PIN para continuar</div>
+    </div>
+    <input id="pin-enter-input" class="field-input" type="password" placeholder="Ingresa tu PIN" autocomplete="current-password" autofocus />
+    <div id="pin-enter-error" class="error-box" style="display:none"></div>
+    <button class="btn-primary" onclick="submitEnterPin()">Acceder</button>
+  </div>
+</div>
+
+<!-- ── DASHBOARD ── -->
+<div id="dashboard" style="display:none">
+  <div class="header">
+    <div>
+      <div class="header-title">Analytics Dashboard</div>
+      <div class="header-sub" id="ga-status-label">Verificando conexión...</div>
+    </div>
+    <div class="header-actions">
+      <button class="btn-icon btn-refresh" onclick="refresh()" id="btn-refresh">
+        <span id="refresh-icon">↻</span> Actualizar
+      </button>
+      <button class="btn-icon btn-logout" onclick="logout()">⎋ Salir</button>
+    </div>
+  </div>
+
+  <div class="main">
+    <!-- GA auth banner (shown when not authenticated with Google) -->
+    <div class="ga-banner" id="ga-banner" style="display:none">
+      <div style="font-size:28px">⚠️</div>
+      <div class="ga-banner-text">
+        <div class="ga-banner-title">Autorización de Google Analytics pendiente</div>
+        <div class="ga-banner-desc">El backend no tiene acceso a Google Analytics. Autoriza con tu cuenta de Gmail para ver datos reales.</div>
+      </div>
+      <a id="ga-auth-link" href="#" target="_blank" rel="noopener noreferrer" class="btn-ga-auth">
+        Autorizar con Google →
+      </a>
+    </div>
+
+    <!-- Date range -->
+    <div class="range-bar">
+      <button class="btn-range active" data-days="7"  onclick="changeRange(this, 7)">7 días</button>
+      <button class="btn-range"        data-days="30" onclick="changeRange(this, 30)">30 días</button>
+      <button class="btn-range"        data-days="90" onclick="changeRange(this, 90)">90 días</button>
+    </div>
+
+    <!-- Error -->
+    <div id="error-banner" class="error-banner" style="display:none"></div>
+
+    <!-- Loading -->
+    <div id="loading-state" class="state-box">
+      <div class="icon">⏳</div>
+      <div>Cargando datos de Google Analytics...</div>
+    </div>
+
+    <!-- Data -->
+    <div id="data-section" style="display:none">
+      <!-- KPIs -->
+      <div class="kpi-grid">
+        <div class="kpi-card"><div class="kpi-label">Usuarios <span>👥</span></div><div class="kpi-value" id="kpi-users">—</div></div>
+        <div class="kpi-card"><div class="kpi-label">Sesiones <span>📊</span></div><div class="kpi-value" id="kpi-sessions">—</div></div>
+        <div class="kpi-card"><div class="kpi-label">Vistas <span>👁️</span></div><div class="kpi-value" id="kpi-views">—</div></div>
+        <div class="kpi-card"><div class="kpi-label">Rebote <span>↩️</span></div><div class="kpi-value" id="kpi-bounce">—</div></div>
+        <div class="kpi-card"><div class="kpi-label">Duración <span>⏱️</span></div><div class="kpi-value" id="kpi-duration">—</div></div>
+        <div class="kpi-card"><div class="kpi-label">Conversiones <span>🎯</span></div><div class="kpi-value" id="kpi-conversions">—</div></div>
+      </div>
+
+      <!-- Charts -->
+      <div class="charts-row">
+        <div class="card">
+          <div class="card-title">Tráfico en el tiempo</div>
+          <div class="chart-wrap"><canvas id="chart-traffic"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Dispositivos</div>
+          <div class="chart-wrap"><canvas id="chart-devices"></canvas></div>
+        </div>
+      </div>
+
+      <!-- Top pages -->
+      <div class="card table-card">
+        <div class="card-title">Páginas más visitadas</div>
+        <div style="overflow-x:auto">
+          <table>
+            <thead><tr>
+              <th>Página</th><th>Vistas</th><th>Usuarios</th><th>Rebote</th>
+            </tr></thead>
+            <tbody id="table-pages"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const BACKEND = 'https://analytics-dashboard-7teo.onrender.com';
+  let savedPin = null;
+  let currentDays = 30;
+  let trafficChart = null;
+  let devicesChart = null;
+
+  // ── Keyboard enter support ──
+  document.getElementById('pin-create-input').addEventListener('keydown', e => { if (e.key === 'Enter') submitCreatePin(); });
+  document.getElementById('pin-enter-input').addEventListener('keydown',  e => { if (e.key === 'Enter') submitEnterPin(); });
+
+  function showScreen(id) {
+    ['screen-pin-create','screen-pin-enter','dashboard'].forEach(s => {
+      document.getElementById(s).style.display = s === id ? (id === 'dashboard' ? 'block' : 'flex') : 'none';
+    });
+  }
+
+  function showError(elId, msg) {
+    const el = document.getElementById(elId);
+    el.textContent = msg; el.style.display = 'block';
+  }
+  function hideError(elId) { document.getElementById(elId).style.display = 'none'; }
+
+  // ── PIN ──
+  function submitCreatePin() {
+    const val = document.getElementById('pin-create-input').value;
+    if (val.length < 4) { showError('pin-create-error', 'El PIN debe tener al menos 4 dígitos'); return; }
+    savedPin = val;
+    document.getElementById('pin-create-input').value = '';
+    hideError('pin-create-error');
+    showScreen('screen-pin-enter');
+    setTimeout(() => document.getElementById('pin-enter-input').focus(), 50);
+  }
+
+  async function submitEnterPin() {
+    const val = document.getElementById('pin-enter-input').value;
+    if (val !== savedPin) { showError('pin-enter-error', 'PIN incorrecto'); document.getElementById('pin-enter-input').value = ''; return; }
+    document.getElementById('pin-enter-input').value = '';
+    hideError('pin-enter-error');
+    showScreen('dashboard');
+    document.getElementById('ga-auth-link').href = BACKEND + '/auth/login';
+    await loadAll();
+  }
+
+  function logout() {
+    savedPin = null;
+    document.getElementById('pin-create-input').value = '';
+    destroyCharts();
+    showScreen('screen-pin-create');
+  }
+
+  // ── Data loading ──
+  async function checkAuth() {
+    try {
+      const r = await fetch(BACKEND + '/auth/status');
+      const j = await r.json();
+      return j.authenticated;
+    } catch { return false; }
+  }
+
+  async function loadAll() {
+    setLoading(true);
+    hideError('error-banner');
+
+    const authed = await checkAuth();
+    document.getElementById('ga-status-label').textContent = authed
+      ? '🟢 Conectado a Google Analytics'
+      : '🔴 No autenticado con Google Analytics';
+    document.getElementById('ga-banner').style.display = authed ? 'none' : 'flex';
+
+    if (!authed) { setLoading(false); return; }
+
+    try {
+      const [summary, traffic, topPages, devices] = await Promise.all([
+        fetch(`${BACKEND}/api/summary?days=${currentDays}`).then(r => { if (!r.ok) throw new Error(r.statusText); return r.json(); }),
+        fetch(`${BACKEND}/api/traffic?days=${currentDays}`).then(r => { if (!r.ok) throw new Error(r.statusText); return r.json(); }),
+        fetch(`${BACKEND}/api/top-pages?days=${currentDays}`).then(r => { if (!r.ok) throw new Error(r.statusText); return r.json(); }),
+        fetch(`${BACKEND}/api/devices?days=${currentDays}`).then(r => { if (!r.ok) throw new Error(r.statusText); return r.json(); }),
+      ]);
+      renderData(summary, traffic, topPages, devices);
+    } catch (err) {
+      document.getElementById('error-banner').textContent = 'Error al cargar datos: ' + err.message;
+      document.getElementById('error-banner').style.display = 'block';
+      setLoading(false);
+    }
+  }
+
+  function setLoading(on) {
+    document.getElementById('loading-state').style.display = on ? 'block' : 'none';
+    document.getElementById('data-section').style.display  = on ? 'none'  : 'block';
+    document.getElementById('refresh-icon').textContent = on ? '⏳' : '↻';
+    document.getElementById('btn-refresh').disabled = on;
+  }
+
+  function renderData(summary, traffic, topPages, devices) {
+    // KPIs
+    document.getElementById('kpi-users').textContent       = (summary.users || 0).toLocaleString();
+    document.getElementById('kpi-sessions').textContent    = (summary.sessions || 0).toLocaleString();
+    document.getElementById('kpi-views').textContent       = (summary.pageViews || 0).toLocaleString();
+    document.getElementById('kpi-bounce').textContent      = (summary.bounceRate || 0) + '%';
+    document.getElementById('kpi-duration').textContent    = summary.avgSessionDuration || '0m';
+    document.getElementById('kpi-conversions').textContent = (summary.conversions || 0).toLocaleString();
+
+    // Traffic chart
+    destroyCharts();
+    const trafficCtx = document.getElementById('chart-traffic').getContext('2d');
+    trafficChart = new Chart(trafficCtx, {
+      type: 'line',
+      data: {
+        labels: traffic.map(d => d.date),
+        datasets: [
+          { label: 'Usuarios', data: traffic.map(d => d.users), borderColor: '#3b82f6', backgroundColor: 'rgba(59,130,246,0.1)', fill: true, tension: 0.4, pointRadius: 3 },
+          { label: 'Sesiones', data: traffic.map(d => d.sessions), borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,0.1)', fill: true, tension: 0.4, pointRadius: 3 },
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { labels: { color: '#94a3b8', font: { family: 'Outfit' } } } },
+        scales: {
+          x: { ticks: { color: '#64748b', maxTicksLimit: 10 }, grid: { color: 'rgba(100,116,139,0.15)' } },
+          y: { ticks: { color: '#64748b' }, grid: { color: 'rgba(100,116,139,0.15)' } }
+        }
+      }
+    });
+
+    // Devices pie
+    const devCtx = document.getElementById('chart-devices').getContext('2d');
+    devicesChart = new Chart(devCtx, {
+      type: 'doughnut',
+      data: {
+        labels: devices.map(d => d.name),
+        datasets: [{ data: devices.map(d => d.value), backgroundColor: devices.map(d => d.color), borderWidth: 2, borderColor: 'rgba(15,23,42,0.8)' }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'bottom', labels: { color: '#94a3b8', padding: 16, font: { family: 'Outfit' } } },
+          tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${ctx.parsed}%` } }
+        }
+      }
+    });
+
+    // Top pages table
+    const tbody = document.getElementById('table-pages');
+    tbody.innerHTML = topPages.map(p => `
+      <tr>
+        <td>${escHtml(p.page)}</td>
+        <td>${(p.views || 0).toLocaleString()}</td>
+        <td>${(p.users || 0).toLocaleString()}</td>
+        <td class="bounce">${p.bounceRate}%</td>
+      </tr>`).join('');
+
+    setLoading(false);
+  }
+
+  function destroyCharts() {
+    if (trafficChart) { trafficChart.destroy(); trafficChart = null; }
+    if (devicesChart) { devicesChart.destroy(); devicesChart = null; }
+  }
+
+  function changeRange(btn, days) {
+    document.querySelectorAll('.btn-range').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentDays = days;
+    loadAll();
+  }
+
+  function refresh() { loadAll(); }
+
+  function escHtml(str) {
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+</script>
+</body>
+</html>
