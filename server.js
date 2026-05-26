@@ -217,6 +217,99 @@ app.get('/api/devices', async (req, res) => {
   }
 });
 
+// Sources
+app.get('/api/sources', async (req, res) => {
+  try {
+    const { days = 30 } = req.query;
+    const dateRange = getDateRange(parseInt(days));
+    const token = await getAccessToken();
+
+    const response = await axios.post(
+      `https://analyticsdata.googleapis.com/v1beta/properties/${propertyId}:runReport`,
+      {
+        dateRanges: [{ startDate: dateRange.startDate, endDate: dateRange.endDate }],
+        dimensions: [{ name: 'sessionDefaultChannelGroup' }],
+        metrics: [{ name: 'sessions' }],
+        orderBys: [{ metric: { metricName: 'sessions' }, desc: true }],
+        limit: 8
+      },
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+
+    const rows = response.data.rows || [];
+    const total = rows.reduce((sum, r) => sum + parseInt(r.metricValues?.[0]?.value || 0), 0);
+    res.json(rows.map(row => ({
+      source: row.dimensionValues?.[0]?.value || 'Unknown',
+      sessions: parseInt(row.metricValues?.[0]?.value) || 0,
+      percentage: total > 0 ? Math.round((parseInt(row.metricValues?.[0]?.value || 0) / total) * 100) : 0
+    })));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Geo
+app.get('/api/geo', async (req, res) => {
+  try {
+    const { days = 30 } = req.query;
+    const dateRange = getDateRange(parseInt(days));
+    const token = await getAccessToken();
+
+    const response = await axios.post(
+      `https://analyticsdata.googleapis.com/v1beta/properties/${propertyId}:runReport`,
+      {
+        dateRanges: [{ startDate: dateRange.startDate, endDate: dateRange.endDate }],
+        dimensions: [{ name: 'country' }],
+        metrics: [{ name: 'activeUsers' }, { name: 'sessions' }],
+        orderBys: [{ metric: { metricName: 'activeUsers' }, desc: true }],
+        limit: 8
+      },
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+
+    res.json((response.data.rows || []).map(row => ({
+      country: row.dimensionValues?.[0]?.value || 'Unknown',
+      users: parseInt(row.metricValues?.[0]?.value) || 0,
+      sessions: parseInt(row.metricValues?.[1]?.value) || 0
+    })));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// New vs Returning
+app.get('/api/new-vs-returning', async (req, res) => {
+  try {
+    const { days = 30 } = req.query;
+    const dateRange = getDateRange(parseInt(days));
+    const token = await getAccessToken();
+
+    const response = await axios.post(
+      `https://analyticsdata.googleapis.com/v1beta/properties/${propertyId}:runReport`,
+      {
+        dateRanges: [{ startDate: dateRange.startDate, endDate: dateRange.endDate }],
+        dimensions: [{ name: 'newVsReturning' }],
+        metrics: [{ name: 'activeUsers' }]
+      },
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+
+    const rows = response.data.rows || [];
+    const total = rows.reduce((sum, r) => sum + parseInt(r.metricValues?.[0]?.value || 0), 0);
+    res.json(rows.map(row => {
+      const label = row.dimensionValues?.[0]?.value || 'unknown';
+      return {
+        name: label === 'new' ? 'Nuevos' : 'Recurrentes',
+        users: parseInt(row.metricValues?.[0]?.value) || 0,
+        percentage: total > 0 ? Math.round((parseInt(row.metricValues?.[0]?.value || 0) / total) * 100) : 0,
+        color: label === 'new' ? '#3b82f6' : '#10b981'
+      };
+    }));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Health
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', propertyId, authenticated: !!storedTokens, timestamp: new Date().toISOString() });

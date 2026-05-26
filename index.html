@@ -128,27 +128,8 @@
 </head>
 <body>
 
-<!-- ── PIN CREATE ── -->
-<div id="screen-pin-create" class="auth-wrap">
-  <div class="auth-card">
-    <div style="text-align:center">
-      <div class="auth-icon">
-        <svg width="32" height="32" fill="none" stroke="#60a5fa" stroke-width="2" viewBox="0 0 24 24">
-          <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-        </svg>
-      </div>
-      <div class="auth-title">Analytics Dashboard</div>
-      <div class="auth-sub">Crea un PIN para proteger el acceso</div>
-    </div>
-    <label class="field-label">PIN de acceso (mín. 4 dígitos)</label>
-    <input id="pin-create-input" class="field-input" type="password" placeholder="Ingresa tu PIN" autocomplete="new-password" />
-    <div id="pin-create-error" class="error-box" style="display:none"></div>
-    <button class="btn-primary" onclick="submitCreatePin()">Crear PIN</button>
-  </div>
-</div>
-
 <!-- ── PIN ENTER ── -->
-<div id="screen-pin-enter" class="auth-wrap" style="display:none">
+<div id="screen-pin-enter" class="auth-wrap">
   <div class="auth-card">
     <div style="text-align:center">
       <div class="auth-icon">
@@ -233,6 +214,31 @@
         </div>
       </div>
 
+      <!-- Sources + New vs Returning -->
+      <div class="charts-row" style="margin-bottom:28px">
+        <div class="card">
+          <div class="card-title">Fuentes de tráfico</div>
+          <div class="chart-wrap"><canvas id="chart-sources"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Nuevos vs Recurrentes</div>
+          <div class="chart-wrap"><canvas id="chart-nvr"></canvas></div>
+        </div>
+      </div>
+
+      <!-- Top countries -->
+      <div class="card table-card">
+        <div class="card-title">Países</div>
+        <div style="overflow-x:auto">
+          <table>
+            <thead><tr>
+              <th>País</th><th>Usuarios</th><th>Sesiones</th>
+            </tr></thead>
+            <tbody id="table-geo"><tr><td colspan="3" style="text-align:center;color:#64748b;padding:24px">Cargando...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
       <!-- Top pages -->
       <div class="card table-card">
         <div class="card-title">Páginas más visitadas</div>
@@ -251,17 +257,17 @@
 
 <script>
   const BACKEND = 'https://analytics-dashboard-7teo.onrender.com';
-  let savedPin = null;
+  const ACCESS_PIN = '2087';
   let currentDays = 30;
   let trafficChart = null;
   let devicesChart = null;
+  let sourcesChart = null;
+  let nvrChart = null;
 
-  // ── Keyboard enter support ──
-  document.getElementById('pin-create-input').addEventListener('keydown', e => { if (e.key === 'Enter') submitCreatePin(); });
-  document.getElementById('pin-enter-input').addEventListener('keydown',  e => { if (e.key === 'Enter') submitEnterPin(); });
+  document.getElementById('pin-enter-input').addEventListener('keydown', e => { if (e.key === 'Enter') submitEnterPin(); });
 
   function showScreen(id) {
-    ['screen-pin-create','screen-pin-enter','dashboard'].forEach(s => {
+    ['screen-pin-enter','dashboard'].forEach(s => {
       document.getElementById(s).style.display = s === id ? (id === 'dashboard' ? 'block' : 'flex') : 'none';
     });
   }
@@ -272,20 +278,9 @@
   }
   function hideError(elId) { document.getElementById(elId).style.display = 'none'; }
 
-  // ── PIN ──
-  function submitCreatePin() {
-    const val = document.getElementById('pin-create-input').value;
-    if (val.length < 4) { showError('pin-create-error', 'El PIN debe tener al menos 4 dígitos'); return; }
-    savedPin = val;
-    document.getElementById('pin-create-input').value = '';
-    hideError('pin-create-error');
-    showScreen('screen-pin-enter');
-    setTimeout(() => document.getElementById('pin-enter-input').focus(), 50);
-  }
-
   async function submitEnterPin() {
     const val = document.getElementById('pin-enter-input').value;
-    if (val !== savedPin) { showError('pin-enter-error', 'PIN incorrecto'); document.getElementById('pin-enter-input').value = ''; return; }
+    if (val !== ACCESS_PIN) { showError('pin-enter-error', 'PIN incorrecto'); document.getElementById('pin-enter-input').value = ''; return; }
     document.getElementById('pin-enter-input').value = '';
     hideError('pin-enter-error');
     showScreen('dashboard');
@@ -294,10 +289,8 @@
   }
 
   function logout() {
-    savedPin = null;
-    document.getElementById('pin-create-input').value = '';
     destroyCharts();
-    showScreen('screen-pin-create');
+    showScreen('screen-pin-enter');
   }
 
   // ── Data loading ──
@@ -322,13 +315,16 @@
     if (!authed) { setLoading(false); return; }
 
     try {
-      const [summary, traffic, topPages, devices] = await Promise.all([
+      const [summary, traffic, topPages, devices, sources, geo, nvr] = await Promise.all([
         fetch(`${BACKEND}/api/summary?days=${currentDays}`).then(r => { if (!r.ok) throw new Error(r.statusText); return r.json(); }),
         fetch(`${BACKEND}/api/traffic?days=${currentDays}`).then(r => { if (!r.ok) throw new Error(r.statusText); return r.json(); }),
         fetch(`${BACKEND}/api/top-pages?days=${currentDays}`).then(r => { if (!r.ok) throw new Error(r.statusText); return r.json(); }),
         fetch(`${BACKEND}/api/devices?days=${currentDays}`).then(r => { if (!r.ok) throw new Error(r.statusText); return r.json(); }),
+        fetch(`${BACKEND}/api/sources?days=${currentDays}`).then(r => { if (!r.ok) throw new Error(r.statusText); return r.json(); }),
+        fetch(`${BACKEND}/api/geo?days=${currentDays}`).then(r => { if (!r.ok) throw new Error(r.statusText); return r.json(); }),
+        fetch(`${BACKEND}/api/new-vs-returning?days=${currentDays}`).then(r => { if (!r.ok) throw new Error(r.statusText); return r.json(); }),
       ]);
-      renderData(summary, traffic, topPages, devices);
+      renderData(summary, traffic, topPages, devices, sources, geo, nvr);
     } catch (err) {
       document.getElementById('error-banner').textContent = 'Error al cargar datos: ' + err.message;
       document.getElementById('error-banner').style.display = 'block';
@@ -343,7 +339,7 @@
     document.getElementById('btn-refresh').disabled = on;
   }
 
-  function renderData(summary, traffic, topPages, devices) {
+  function renderData(summary, traffic, topPages, devices, sources, geo, nvr) {
     // KPIs
     document.getElementById('kpi-users').textContent       = (summary.users || 0).toLocaleString();
     document.getElementById('kpi-sessions').textContent    = (summary.sessions || 0).toLocaleString();
@@ -405,12 +401,63 @@
         </tr>`).join('');
     }
 
+    // Sources horizontal bar chart
+    const srcCtx = document.getElementById('chart-sources').getContext('2d');
+    const srcColors = ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#f97316','#ec4899'];
+    sourcesChart = new Chart(srcCtx, {
+      type: 'bar',
+      data: {
+        labels: sources.map(s => s.source),
+        datasets: [{ data: sources.map(s => s.sessions), backgroundColor: srcColors.slice(0, sources.length), borderRadius: 6, borderWidth: 0 }]
+      },
+      options: {
+        indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ` ${ctx.parsed.x.toLocaleString()} sesiones` } } },
+        scales: {
+          x: { ticks: { color: '#64748b' }, grid: { color: 'rgba(100,116,139,0.15)' } },
+          y: { ticks: { color: '#94a3b8', font: { size: 12 } }, grid: { display: false } }
+        }
+      }
+    });
+
+    // New vs Returning donut
+    const nvrCtx = document.getElementById('chart-nvr').getContext('2d');
+    nvrChart = new Chart(nvrCtx, {
+      type: 'doughnut',
+      data: {
+        labels: nvr.map(d => `${d.name} (${d.percentage}%)`),
+        datasets: [{ data: nvr.map(d => d.users), backgroundColor: nvr.map(d => d.color), borderWidth: 2, borderColor: 'rgba(15,23,42,0.8)' }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'bottom', labels: { color: '#94a3b8', padding: 16, font: { family: 'Outfit' } } },
+          tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${ctx.parsed.toLocaleString()} usuarios` } }
+        }
+      }
+    });
+
+    // Geo table
+    const tbodyGeo = document.getElementById('table-geo');
+    if (!geo.length) {
+      tbodyGeo.innerHTML = '<tr><td colspan="3" style="text-align:center;color:#64748b;padding:24px">Sin datos para este período</td></tr>';
+    } else {
+      tbodyGeo.innerHTML = geo.map(g => `
+        <tr>
+          <td>${escHtml(g.country)}</td>
+          <td>${g.users.toLocaleString()}</td>
+          <td>${g.sessions.toLocaleString()}</td>
+        </tr>`).join('');
+    }
+
     setLoading(false);
   }
 
   function destroyCharts() {
-    if (trafficChart) { trafficChart.destroy(); trafficChart = null; }
-    if (devicesChart) { devicesChart.destroy(); devicesChart = null; }
+    if (trafficChart)  { trafficChart.destroy();  trafficChart  = null; }
+    if (devicesChart)  { devicesChart.destroy();  devicesChart  = null; }
+    if (sourcesChart)  { sourcesChart.destroy();  sourcesChart  = null; }
+    if (nvrChart)      { nvrChart.destroy();      nvrChart      = null; }
   }
 
   function changeRange(btn, days) {
