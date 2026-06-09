@@ -309,7 +309,7 @@
     const auth = await checkAuth();
     const authed = auth.authenticated;
     document.getElementById('ga-status-label').textContent = authed
-      ? (auth.mode === 'service_account' ? '🟢 Conectado a Google Analytics' : '🟢 Google Analytics autorizado')
+      ? (auth.mode === 'oauth' ? '🟢 Google Analytics autorizado' : '🟢 Conectado a Google Analytics')
       : '🔴 No autenticado con Google Analytics';
     document.getElementById('ga-banner').style.display = authed || auth.mode === 'service_account' ? 'none' : 'flex';
 

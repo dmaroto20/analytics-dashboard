@@ -25,26 +25,28 @@ const propertyId = process.env.PROPERTY_ID || '414258625';
 const CLIENT_ID = process.env.OAUTH_CLIENT_ID;
 const CLIENT_SECRET = process.env.OAUTH_CLIENT_SECRET;
 const REDIRECT_URI = process.env.REDIRECT_URI || 'https://analytics-dashboard-7teo.onrender.com/auth/callback';
+const GOOGLE_REFRESH_TOKEN = process.env.GOOGLE_REFRESH_TOKEN;
 const SERVICE_ACCOUNT_EMAIL = process.env.SERVICE_ACCOUNT_EMAIL;
 const SERVICE_ACCOUNT_PRIVATE_KEY = process.env.SERVICE_ACCOUNT_PRIVATE_KEY?.replace(/\\n/g, '\n');
 const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token';
 const GA_SCOPE = 'https://www.googleapis.com/auth/analytics.readonly';
 
-let storedTokens = null;
+let storedTokens = GOOGLE_REFRESH_TOKEN ? { refresh_token: GOOGLE_REFRESH_TOKEN } : null;
 let serviceAccountToken = null;
 
 const hasServiceAccount = Boolean(SERVICE_ACCOUNT_EMAIL && SERVICE_ACCOUNT_PRIVATE_KEY);
+const hasRefreshToken = Boolean(GOOGLE_REFRESH_TOKEN && CLIENT_ID && CLIENT_SECRET);
 
 // Auth - redirigir a Google
 app.get('/auth/login', (req, res) => {
-  if (hasServiceAccount) {
+  if (hasServiceAccount || hasRefreshToken) {
     return res.send(`
       <html>
         <body style="background:#0f172a;color:white;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;">
           <div style="text-align:center;">
             <h1 style="font-size:48px">✅</h1>
             <h2>Google Analytics ya está conectado</h2>
-            <p style="color:#94a3b8">El dashboard usa una cuenta de servicio del servidor.</p>
+            <p style="color:#94a3b8">El dashboard usa credenciales configuradas en el servidor.</p>
           </div>
         </body>
       </html>
@@ -100,8 +102,8 @@ app.get('/auth/callback', async (req, res) => {
 // Auth - estado
 app.get('/auth/status', (req, res) => {
   res.json({
-    authenticated: hasServiceAccount || !!storedTokens,
-    mode: hasServiceAccount ? 'service_account' : 'oauth'
+    authenticated: hasServiceAccount || hasRefreshToken || !!storedTokens,
+    mode: hasServiceAccount ? 'service_account' : (hasRefreshToken ? 'refresh_token' : 'oauth')
   });
 });
 
@@ -146,7 +148,7 @@ const getAccessToken = async () => {
 
   if (!storedTokens) throw new Error('No autenticado. Visita /auth/login primero.');
   
-  if (storedTokens.expires_at && Date.now() > storedTokens.expires_at - 60000) {
+  if (!storedTokens.access_token || !storedTokens.expires_at || Date.now() > storedTokens.expires_at - 60000) {
     if (!storedTokens.refresh_token) {
       storedTokens = null;
       throw new Error('La sesión expiró. Visita /auth/login para autorizar de nuevo.');
@@ -399,8 +401,8 @@ app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
     propertyId,
-    authenticated: hasServiceAccount || !!storedTokens,
-    authMode: hasServiceAccount ? 'service_account' : 'oauth',
+    authenticated: hasServiceAccount || hasRefreshToken || !!storedTokens,
+    authMode: hasServiceAccount ? 'service_account' : (hasRefreshToken ? 'refresh_token' : 'oauth'),
     timestamp: new Date().toISOString()
   });
 });

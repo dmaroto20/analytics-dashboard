@@ -27,15 +27,18 @@ Luego agrega el correo de la cuenta de servicio como usuario de la propiedad GA4
 
 ## OAuth opcional
 
-El proyecto conserva el flujo OAuth como respaldo. Solo es necesario si no configuras `SERVICE_ACCOUNT_EMAIL` y `SERVICE_ACCOUNT_PRIVATE_KEY`.
+El proyecto conserva el flujo OAuth como respaldo. Si Google Analytics no acepta la cuenta de servicio, usa un refresh token persistente. Esta es la opcion mas practica para compartir el dashboard: autorizas una vez con tu cuenta y Render renueva el acceso automaticamente.
 
-En ese caso, crea estas variables:
+En ese caso, crea estas variables en Render:
 
 ```text
 OAUTH_CLIENT_ID=your-google-oauth-client-id
 OAUTH_CLIENT_SECRET=your-google-oauth-client-secret
 REDIRECT_URI=https://analytics-dashboard-7teo.onrender.com/auth/callback
+GOOGLE_REFRESH_TOKEN=your-google-refresh-token
 ```
+
+Con `GOOGLE_REFRESH_TOKEN` configurado, los usuarios del dashboard no tienen que iniciar sesion con Google.
 
 ## Desarrollo local
 
