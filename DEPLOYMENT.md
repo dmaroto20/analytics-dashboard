@@ -136,7 +136,10 @@ El dashboard ejecutivo tambien usa este endpoint para el comparativo mensual:
 https://analytics-dashboard-7teo.onrender.com/api/monthly-comparison?months=6
 ```
 
-Debe responder una lista de meses con usuarios, visitas, vistas, interes y conversiones.
+Debe responder:
+
+- `closedMonths`: meses completos para comparar de forma justa.
+- `currentMonth`: mes actual parcial, solo como referencia.
 
 ## Google Cloud OAuth
 

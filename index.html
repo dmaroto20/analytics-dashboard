@@ -85,6 +85,29 @@
 
     .main { max-width: 1280px; margin: 0 auto; padding: 32px 24px; }
 
+    .nav-tabs {
+      display: flex; gap: 4px; padding: 0 28px; background: var(--omega-blue-dark);
+      border-bottom: 3px solid var(--omega-red); overflow-x: auto;
+    }
+    .nav-tab {
+      padding: 11px 18px; color: rgba(255,255,255,0.64); cursor: pointer;
+      border: none; border-top: 3px solid transparent; background: transparent;
+      font-family: 'Barlow Condensed', sans-serif; font-size: 14px; text-transform: uppercase;
+      font-weight: 700; letter-spacing: .5px; white-space: nowrap; transition: all .2s;
+    }
+    .nav-tab:hover { color: rgba(255,255,255,0.9); }
+    .nav-tab.active { color: #ffffff; border-top-color: var(--omega-red); background: rgba(255,255,255,0.08); }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+    .section-heading {
+      margin-bottom: 18px; display: flex; align-items: end; justify-content: space-between; gap: 16px;
+    }
+    .section-title-xl {
+      font-family: 'Barlow Condensed', sans-serif; color: #ffffff; font-size: 24px;
+      font-weight: 800; text-transform: uppercase; letter-spacing: .7px;
+    }
+    .section-desc-xl { color: #94a3b8; font-size: 13px; margin-top: 4px; }
+
     /* GA auth banner */
     .ga-banner {
       display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
@@ -101,7 +124,7 @@
     }
 
     /* Range buttons */
-    .range-bar { display: flex; gap: 10px; margin-bottom: 28px; }
+    .range-bar { display: flex; gap: 10px; margin-bottom: 22px; flex-wrap: wrap; }
     .btn-range {
       padding: 8px 18px; border-radius: 8px; cursor: pointer; font-family: inherit;
       font-size: 14px; font-weight: 500; border: 1px solid #334155;
@@ -199,6 +222,21 @@
     .trend-pill.up { background: #dcfce7; color: #166534; }
     .trend-pill.down { background: #fee2e2; color: #991b1b; }
     .trend-pill.flat { background: #fef3c7; color: #92400e; }
+    .partial-card {
+      display: grid; grid-template-columns: 1fr auto; gap: 14px; align-items: center;
+      background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px;
+      padding: 16px 18px; margin-bottom: 18px;
+    }
+    .partial-label {
+      font-family: 'Barlow Condensed', sans-serif; font-size: 18px; font-weight: 800;
+      color: var(--omega-blue-dark); text-transform: uppercase; letter-spacing: .4px;
+    }
+    .partial-copy { color: #64748b; font-size: 13px; margin-top: 3px; }
+    .partial-metrics { display: flex; gap: 12px; flex-wrap: wrap; justify-content: flex-end; }
+    .partial-metric { text-align: right; min-width: 92px; }
+    .partial-metric strong { display: block; font-family: 'Barlow Condensed', sans-serif; font-size: 22px; color: var(--omega-blue-dark); }
+    .partial-metric span { color: #64748b; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; }
+    @media (max-width: 760px) { .partial-card { grid-template-columns: 1fr; } .partial-metrics { justify-content: flex-start; } .partial-metric { text-align: left; } }
 
     /* Top pages table */
     .table-card { margin-bottom: 28px; }
@@ -252,6 +290,14 @@
     </div>
   </div>
 
+  <div class="nav-tabs" role="tablist" aria-label="Secciones del dashboard">
+    <button class="nav-tab active" type="button" onclick="showTab('summary', this)">Resumen ejecutivo</button>
+    <button class="nav-tab" type="button" onclick="showTab('comparison', this)">Comparativo mensual</button>
+    <button class="nav-tab" type="button" onclick="showTab('traffic', this)">Tráfico y canales</button>
+    <button class="nav-tab" type="button" onclick="showTab('pages', this)">Páginas principales</button>
+    <button class="nav-tab" type="button" onclick="showTab('audience', this)">Audiencia</button>
+  </div>
+
   <div class="main">
     <!-- GA auth banner (shown when not authenticated with Google) -->
     <div class="ga-banner" id="ga-banner" style="display:none">
@@ -265,13 +311,6 @@
       </a>
     </div>
 
-    <!-- Date range -->
-    <div class="range-bar">
-      <button class="btn-range active" data-days="7"  onclick="changeRange(this, 7)">7 días</button>
-      <button class="btn-range"        data-days="30" onclick="changeRange(this, 30)">30 días</button>
-      <button class="btn-range"        data-days="90" onclick="changeRange(this, 90)">90 días</button>
-    </div>
-
     <!-- Error -->
     <div id="error-banner" class="error-banner" style="display:none"></div>
 
@@ -283,8 +322,15 @@
 
     <!-- Data -->
     <div id="data-section" style="display:none">
-      <!-- KPIs -->
-      <div class="exec-panel">
+      <section class="tab-panel active" id="tab-summary">
+        <div class="section-heading">
+          <div>
+            <div class="section-title-xl">Resumen ejecutivo</div>
+            <div class="section-desc-xl">Lectura rápida para dirección, basada en meses completos.</div>
+          </div>
+        </div>
+
+        <div class="exec-panel">
         <div>
           <div class="exec-eyebrow">Resumen ejecutivo</div>
           <div class="exec-title" id="exec-title">Cargando lectura del sitio...</div>
@@ -303,10 +349,30 @@
         <div class="simple-kpi" id="card-engagement"><div class="simple-kpi-label">Interés real</div><div class="simple-kpi-value" id="simple-engagement">—</div><div class="simple-kpi-change flat" id="simple-engagement-change">—</div><div class="simple-kpi-note">Porcentaje de visitas con interacción útil.</div></div>
         <div class="simple-kpi" id="card-conversions"><div class="simple-kpi-label">Acciones importantes</div><div class="simple-kpi-value" id="simple-conversions">—</div><div class="simple-kpi-change flat" id="simple-conversions-change">—</div><div class="simple-kpi-note">Conversiones registradas en Analytics.</div></div>
       </div>
+      </section>
 
-      <div class="plain-card">
+      <section class="tab-panel" id="tab-comparison">
+        <div class="section-heading">
+          <div>
+            <div class="section-title-xl">Comparativo mensual</div>
+            <div class="section-desc-xl">Compara solo meses cerrados. El mes actual aparece separado porque aún está en curso.</div>
+          </div>
+        </div>
+
+        <div class="plain-card">
         <div class="plain-card-title">Comparativo mensual</div>
-        <div class="plain-card-sub">Vista para dirección: permite ver si el sitio está creciendo, estable o bajando mes a mes.</div>
+        <div class="plain-card-sub">Vista para dirección: meses completos contra meses completos, sin mezclar periodos parciales.</div>
+        <div class="partial-card" id="current-month-card">
+          <div>
+            <div class="partial-label" id="current-month-label">Mes en curso</div>
+            <div class="partial-copy" id="current-month-copy">Datos parciales del mes actual, no comparables aún con un mes completo.</div>
+          </div>
+          <div class="partial-metrics">
+            <div class="partial-metric"><strong id="current-users">—</strong><span>Personas</span></div>
+            <div class="partial-metric"><strong id="current-sessions">—</strong><span>Visitas</span></div>
+            <div class="partial-metric"><strong id="current-engagement">—</strong><span>Interés</span></div>
+          </div>
+        </div>
         <div class="monthly-wrap"><canvas id="chart-monthly"></canvas></div>
         <div style="overflow-x:auto;margin-top:18px">
           <table>
@@ -317,6 +383,7 @@
           </table>
         </div>
       </div>
+      </section>
 
       <div class="kpi-grid" style="display:none">
         <div class="kpi-card"><div class="kpi-label">Usuarios <span>👥</span></div><div class="kpi-value" id="kpi-users">—</div></div>
@@ -327,6 +394,20 @@
         <div class="kpi-card"><div class="kpi-label">Conversiones <span>🎯</span></div><div class="kpi-value" id="kpi-conversions">—</div></div>
       </div>
 
+      <section class="tab-panel" id="tab-traffic">
+        <div class="section-heading">
+          <div>
+            <div class="section-title-xl">Tráfico y canales</div>
+            <div class="section-desc-xl">Detalle operativo para revisar periodos recientes, fuentes de visita y evolución diaria.</div>
+          </div>
+        </div>
+
+        <div class="range-bar">
+          <button class="btn-range active" data-days="7"  onclick="changeRange(this, 7)">Últimos 7 días</button>
+          <button class="btn-range"        data-days="30" onclick="changeRange(this, 30)">Últimos 30 días</button>
+          <button class="btn-range"        data-days="90" onclick="changeRange(this, 90)">Últimos 90 días</button>
+        </div>
+
       <!-- Charts -->
       <div class="charts-row">
         <div class="card">
@@ -334,16 +415,24 @@
           <div class="chart-wrap"><canvas id="chart-traffic"></canvas></div>
         </div>
         <div class="card">
-          <div class="card-title">Dispositivos</div>
-          <div class="chart-wrap"><canvas id="chart-devices"></canvas></div>
-        </div>
-      </div>
-
-      <!-- Sources + New vs Returning -->
-      <div class="charts-row" style="margin-bottom:28px">
-        <div class="card">
           <div class="card-title">Fuentes de tráfico</div>
           <div class="chart-wrap"><canvas id="chart-sources"></canvas></div>
+        </div>
+      </div>
+      </section>
+
+      <section class="tab-panel" id="tab-audience">
+        <div class="section-heading">
+          <div>
+            <div class="section-title-xl">Audiencia</div>
+            <div class="section-desc-xl">Quién visita el sitio, desde dónde y en qué tipo de dispositivo.</div>
+          </div>
+        </div>
+
+      <div class="charts-row" style="margin-bottom:28px">
+        <div class="card">
+          <div class="card-title">Dispositivos</div>
+          <div class="chart-wrap"><canvas id="chart-devices"></canvas></div>
         </div>
         <div class="card">
           <div class="card-title">Nuevos vs Recurrentes</div>
@@ -363,6 +452,15 @@
           </table>
         </div>
       </div>
+      </section>
+
+      <section class="tab-panel" id="tab-pages">
+        <div class="section-heading">
+          <div>
+            <div class="section-title-xl">Páginas principales</div>
+            <div class="section-desc-xl">Qué contenidos reciben más atención dentro del sitio.</div>
+          </div>
+        </div>
 
       <!-- Top pages -->
       <div class="card table-card">
@@ -376,6 +474,7 @@
           </table>
         </div>
       </div>
+      </section>
     </div>
   </div>
 </div>
@@ -383,7 +482,7 @@
 <script>
   const BACKEND = 'https://analytics-dashboard-7teo.onrender.com';
   const ACCESS_PIN = '2087';
-  let currentDays = 30;
+  let currentDays = 7;
   let trafficChart = null;
   let devicesChart = null;
   let sourcesChart = null;
@@ -417,6 +516,14 @@
   function logout() {
     destroyCharts();
     showScreen('screen-pin-enter');
+  }
+
+  function showTab(name, btn) {
+    document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.remove('active'));
+    document.getElementById(`tab-${name}`).classList.add('active');
+    document.querySelectorAll('.nav-tab').forEach(tab => tab.classList.remove('active'));
+    btn.classList.add('active');
+    setTimeout(() => [trafficChart, devicesChart, sourcesChart, nvrChart, monthlyChart].forEach(chart => chart?.resize()), 50);
   }
 
   // ── Data loading ──
@@ -582,7 +689,9 @@
     setLoading(false);
   }
 
-  function renderExecutiveSummary(summary, monthly) {
+  function renderExecutiveSummary(summary, monthlyPayload) {
+    const monthly = Array.isArray(monthlyPayload) ? monthlyPayload : (monthlyPayload?.closedMonths || []);
+    const currentMonth = Array.isArray(monthlyPayload) ? null : monthlyPayload?.currentMonth;
     const last = monthly?.[monthly.length - 1] || null;
     const previous = monthly?.[monthly.length - 2] || null;
     const usersChange = pctChange(last?.users, previous?.users);
@@ -590,10 +699,10 @@
     const engagementChange = pctChange(last?.engagementRate, previous?.engagementRate);
     const conversionsChange = pctChange(last?.conversions, previous?.conversions);
 
-    document.getElementById('simple-users').textContent = (summary.users || 0).toLocaleString();
-    document.getElementById('simple-sessions').textContent = (summary.sessions || 0).toLocaleString();
+    document.getElementById('simple-users').textContent = (last?.users || summary.users || 0).toLocaleString();
+    document.getElementById('simple-sessions').textContent = (last?.sessions || summary.sessions || 0).toLocaleString();
     document.getElementById('simple-engagement').textContent = `${last?.engagementRate ?? 0}%`;
-    document.getElementById('simple-conversions').textContent = (summary.conversions || 0).toLocaleString();
+    document.getElementById('simple-conversions').textContent = (last?.conversions || summary.conversions || 0).toLocaleString();
 
     applyKpiTrend('card-users', 'simple-users-change', usersChange, 'vs mes anterior');
     applyKpiTrend('card-sessions', 'simple-sessions-change', sessionsChange, 'vs mes anterior');
@@ -604,14 +713,24 @@
     const negativeSignals = [usersChange, sessionsChange, engagementChange, conversionsChange].filter(v => v < -3).length;
     const status = positiveSignals >= 2 ? 'En crecimiento' : negativeSignals >= 2 ? 'Requiere atención' : 'Estable';
     document.getElementById('exec-status-value').textContent = status;
-    document.getElementById('exec-status-note').textContent = last && previous ? `${last.month} comparado con ${previous.month}` : 'Comparado con el mes anterior';
+    document.getElementById('exec-status-note').textContent = last && previous ? `${last.month} comparado con ${previous.month}` : 'Mes cerrado comparado con el anterior';
 
     const mainTrend = usersChange >= sessionsChange ? usersChange : sessionsChange;
     const direction = mainTrend > 3 ? 'aumentó' : mainTrend < -3 ? 'bajó' : 'se mantuvo estable';
     document.getElementById('exec-title').textContent = `El tráfico del sitio ${direction}`;
     document.getElementById('exec-copy').textContent = buildInsightCopy(usersChange, sessionsChange, engagementChange, conversionsChange, topMetricName(usersChange, sessionsChange, engagementChange, conversionsChange));
 
+    renderCurrentMonth(currentMonth);
     renderMonthlyComparison(monthly || []);
+  }
+
+  function renderCurrentMonth(currentMonth) {
+    if (!currentMonth) return;
+    document.getElementById('current-month-label').textContent = `${currentMonth.month} en curso`;
+    document.getElementById('current-month-copy').textContent = `Datos parciales del 1 al ${currentMonth.dayOfMonth || ''}. Se muestran como referencia, sin compararlos contra meses completos.`;
+    document.getElementById('current-users').textContent = currentMonth.users.toLocaleString();
+    document.getElementById('current-sessions').textContent = currentMonth.sessions.toLocaleString();
+    document.getElementById('current-engagement').textContent = `${currentMonth.engagementRate}%`;
   }
 
   function renderMonthlyComparison(monthly) {

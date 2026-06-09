@@ -173,23 +173,36 @@ const getDateRange = (days) => {
 
 const toISODate = (date) => date.toISOString().split('T')[0];
 
-const getMonthlyRanges = (months = 6) => {
+const getClosedMonthlyRanges = (months = 6) => {
   const today = new Date();
   const ranges = [];
 
   for (let i = months - 1; i >= 0; i--) {
-    const start = new Date(today.getFullYear(), today.getMonth() - i, 1);
-    const end = new Date(today.getFullYear(), today.getMonth() - i + 1, 0);
-    const cappedEnd = end > today ? today : end;
+    const start = new Date(today.getFullYear(), today.getMonth() - i - 1, 1);
+    const end = new Date(today.getFullYear(), today.getMonth() - i, 0);
 
     ranges.push({
       label: start.toLocaleDateString('es-ES', { month: 'short', year: 'numeric' }),
       startDate: toISODate(start),
-      endDate: toISODate(cappedEnd)
+      endDate: toISODate(end),
+      isPartial: false
     });
   }
 
   return ranges;
+};
+
+const getCurrentMonthRange = () => {
+  const today = new Date();
+  const start = new Date(today.getFullYear(), today.getMonth(), 1);
+
+  return {
+    label: start.toLocaleDateString('es-ES', { month: 'short', year: 'numeric' }),
+    startDate: toISODate(start),
+    endDate: toISODate(today),
+    isPartial: true,
+    dayOfMonth: today.getDate()
+  };
 };
 
 // Summary
@@ -432,10 +445,11 @@ app.get('/api/health', (req, res) => {
 app.get('/api/monthly-comparison', async (req, res) => {
   try {
     const months = Math.min(Math.max(parseInt(req.query.months || '6'), 2), 12);
-    const ranges = getMonthlyRanges(months);
+    const closedRanges = getClosedMonthlyRanges(months);
+    const currentRange = getCurrentMonthRange();
     const token = await getAccessToken();
 
-    const rows = await Promise.all(ranges.map(async (range) => {
+    const fetchRange = async (range) => {
       const response = await axios.post(
         `https://analyticsdata.googleapis.com/v1beta/properties/${propertyId}:runReport`,
         {
@@ -457,6 +471,8 @@ app.get('/api/monthly-comparison', async (req, res) => {
         month: range.label,
         startDate: range.startDate,
         endDate: range.endDate,
+        isPartial: range.isPartial,
+        dayOfMonth: range.dayOfMonth || null,
         users: parseInt(values[0]?.value) || 0,
         sessions: parseInt(values[1]?.value) || 0,
         pageViews: parseInt(values[2]?.value) || 0,
@@ -464,9 +480,14 @@ app.get('/api/monthly-comparison', async (req, res) => {
         avgSessionDurationSeconds: Math.round(parseFloat(values[4]?.value) || 0),
         conversions: parseInt(values[5]?.value) || 0
       };
-    }));
+    };
 
-    res.json(rows);
+    const [closedMonths, currentMonth] = await Promise.all([
+      Promise.all(closedRanges.map(fetchRange)),
+      fetchRange(currentRange)
+    ]);
+
+    res.json({ closedMonths, currentMonth });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
