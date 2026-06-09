@@ -85,6 +85,23 @@
 
     .main { max-width: 1280px; margin: 0 auto; padding: 32px 24px; }
 
+    .kw-filter {
+      padding: 6px 14px; border-radius: 20px; border: 1px solid rgba(59,130,246,0.4);
+      background: transparent; color: #94a3b8; font-size: 13px; font-family: inherit;
+      cursor: pointer; transition: all .2s;
+    }
+    .kw-filter:hover { border-color: #3b82f6; color: #93c5fd; }
+    .kw-filter.active { background: #3b82f6; border-color: #3b82f6; color: #ffffff; }
+    .pos-badge {
+      display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 12px; font-weight: 600;
+    }
+    .pos-top3 { background: rgba(16,185,129,0.15); color: #10b981; }
+    .pos-top10 { background: rgba(59,130,246,0.15); color: #3b82f6; }
+    .pos-rest  { background: rgba(100,116,139,0.15); color: #64748b; }
+    .change-up   { color: #10b981; font-weight: 600; }
+    .change-down { color: #ef4444; font-weight: 600; }
+    .change-flat { color: #64748b; }
+
     .nav-tabs {
       display: flex; gap: 4px; padding: 0 28px; background: var(--omega-blue-dark);
       border-bottom: 3px solid var(--omega-red); overflow-x: auto;
@@ -332,6 +349,8 @@
     <button class="nav-tab" type="button" onclick="showTab('traffic', this)">Adquisición</button>
     <button class="nav-tab" type="button" onclick="showTab('pages', this)">Contenido</button>
     <button class="nav-tab" type="button" onclick="showTab('audience', this)">Audiencia</button>
+    <button class="nav-tab" type="button" onclick="showTab('seo', this)">SEO</button>
+    <button class="nav-tab" type="button" onclick="showTab('keywords', this)">Keywords</button>
   </div>
 
   <div class="main">
@@ -545,6 +564,130 @@
         </div>
       </div>
       </section>
+
+      <!-- ── SEO / Search Console ── -->
+      <section class="tab-panel" id="tab-seo">
+        <div class="section-heading">
+          <div>
+            <div class="section-title-xl">SEO / Search Console</div>
+            <div class="section-desc-xl">Cómo aparece el sitio en Google antes de que el usuario haga clic. Datos de Google Search Console.</div>
+          </div>
+        </div>
+
+        <div id="seo-loading" style="display:none;text-align:center;padding:40px;color:#94a3b8">Cargando datos de Search Console…</div>
+        <div id="seo-error" style="display:none;margin-bottom:20px;padding:14px 18px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:10px;color:#f87171;font-size:14px"></div>
+
+        <div id="seo-content" style="display:none">
+          <div class="card table-card">
+            <div class="card-title">Palabras clave más buscadas</div>
+            <p style="color:#64748b;font-size:13px;margin-bottom:16px">Las consultas que las personas escriben en Google y llevan al sitio. CTR = porcentaje que hace clic. Posición = lugar promedio en resultados.</p>
+            <div style="overflow-x:auto">
+              <table>
+                <thead><tr>
+                  <th>Palabra clave</th>
+                  <th>Clics</th>
+                  <th>Impresiones</th>
+                  <th>CTR</th>
+                  <th>Posición</th>
+                </tr></thead>
+                <tbody id="table-sc-queries"><tr><td colspan="5" style="text-align:center;color:#64748b;padding:24px">Sin datos</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="card table-card">
+            <div class="card-title">Páginas con más tráfico orgánico</div>
+            <p style="color:#64748b;font-size:13px;margin-bottom:16px">Páginas del sitio que reciben visitas desde búsquedas en Google.</p>
+            <div style="overflow-x:auto">
+              <table>
+                <thead><tr>
+                  <th>Página</th>
+                  <th>Clics</th>
+                  <th>Impresiones</th>
+                  <th>CTR</th>
+                  <th>Posición</th>
+                </tr></thead>
+                <tbody id="table-sc-pages"><tr><td colspan="5" style="text-align:center;color:#64748b;padding:24px">Sin datos</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── Keywords / Posiciones Semrush ── -->
+      <section class="tab-panel" id="tab-keywords">
+        <div class="section-heading">
+          <div>
+            <div class="section-title-xl">Keywords / Posiciones</div>
+            <div class="section-desc-xl">Posiciones en Google por palabra clave. Datos importados mensualmente desde Semrush.</div>
+          </div>
+        </div>
+
+        <div id="keywords-empty" style="text-align:center;padding:60px 20px;color:#64748b">
+          <div style="font-size:40px;margin-bottom:16px">📂</div>
+          <div style="font-size:16px;font-weight:600;margin-bottom:8px;color:#94a3b8">No hay datos cargados</div>
+          <div style="font-size:14px">Sube el CSV de Semrush desde el panel admin para ver las posiciones.</div>
+        </div>
+
+        <div id="keywords-content" style="display:none">
+          <div id="keywords-meta" style="margin-bottom:20px;padding:14px 18px;background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.2);border-radius:10px;color:#93c5fd;font-size:13px"></div>
+
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px" id="keywords-filter-btns">
+            <button class="kw-filter active" data-filter="all" onclick="filterKeywords('all',this)">Todas</button>
+            <button class="kw-filter" data-filter="top3" onclick="filterKeywords('top3',this)">Top 3</button>
+            <button class="kw-filter" data-filter="rising" onclick="filterKeywords('rising',this)">Subiendo ↑</button>
+            <button class="kw-filter" data-filter="falling" onclick="filterKeywords('falling',this)">Bajando ↓</button>
+            <button class="kw-filter" data-filter="risk" onclick="filterKeywords('risk',this)">En riesgo</button>
+          </div>
+
+          <div class="card table-card">
+            <div class="card-title" id="keywords-table-title">Posiciones de keywords</div>
+            <div style="overflow-x:auto">
+              <table>
+                <thead><tr>
+                  <th>Palabra clave</th>
+                  <th>Posición</th>
+                  <th>Anterior</th>
+                  <th>Cambio</th>
+                  <th>Volumen</th>
+                  <th>URL</th>
+                </tr></thead>
+                <tbody id="table-keywords"><tr><td colspan="6" style="text-align:center;color:#64748b;padding:24px">Sin datos</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<!-- ── Admin panel (oculto, acceso via ?admin=1) ── -->
+<div id="screen-admin" style="display:none;min-height:100vh;background:linear-gradient(135deg,var(--omega-blue-dark),var(--omega-blue));align-items:center;justify-content:center;padding:24px">
+  <div style="width:100%;max-width:460px;background:#ffffff;border-radius:16px;padding:40px;box-shadow:0 24px 60px rgba(0,0,0,0.35)">
+    <div style="text-align:center;margin-bottom:28px">
+      <div style="font-size:32px;margin-bottom:10px">🔧</div>
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:800;color:var(--omega-blue-dark);text-transform:uppercase;letter-spacing:1px">Panel Admin</div>
+      <div style="color:#94a3b8;font-size:13px;margin-top:4px">Carga de datos Semrush — acceso interno</div>
+    </div>
+
+    <div style="margin-bottom:20px">
+      <label style="display:block;color:#475569;font-size:13px;font-weight:600;margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px">PIN Admin</label>
+      <input id="admin-pin-input" type="password" placeholder="••••" class="field-input" style="color:#0f172a" />
+    </div>
+
+    <div style="margin-bottom:20px">
+      <label style="display:block;color:#475569;font-size:13px;font-weight:600;margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px">Archivo CSV de Semrush</label>
+      <input id="admin-file-input" type="file" accept=".csv,.txt" style="width:100%;padding:10px;border:2px dashed #cbd5e1;border-radius:8px;color:#475569;font-size:14px;background:#f8fafc;cursor:pointer" />
+      <div style="color:#94a3b8;font-size:12px;margin-top:6px">Exportación de Position Tracking de Semrush. Nombre recomendado: 2026-06.csv</div>
+    </div>
+
+    <button onclick="uploadSemrush()" class="btn-primary" id="admin-upload-btn">Subir archivo</button>
+
+    <div id="admin-result" style="display:none;margin-top:16px;padding:12px 16px;border-radius:8px;font-size:14px;font-weight:500"></div>
+
+    <div style="margin-top:20px;padding:14px;background:#fef3c7;border-radius:8px;border:1px solid #fcd34d">
+      <div style="color:#92400e;font-size:13px">⚠️ <strong>Nota:</strong> Los datos se guardan en memoria del servidor. Si Render reinicia el servicio, deberás subir el CSV nuevamente.</div>
     </div>
   </div>
 </div>
@@ -597,6 +740,8 @@
     document.querySelectorAll('.nav-tab').forEach(tab => tab.classList.remove('active'));
     btn.classList.add('active');
     setTimeout(() => [trafficChart, devicesChart, sourcesChart, nvrChart, monthlyChart].forEach(chart => chart?.resize()), 50);
+    if (name === 'seo') loadSEO();
+    if (name === 'keywords') loadKeywords();
   }
 
   function selectPeriod(type, btn) {
@@ -1058,6 +1203,191 @@
   function escHtml(str) {
     return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   }
+
+  // ── SEO / Search Console ──────────────────────────────────────────────────
+
+  let seoLoaded = false;
+
+  async function loadSEO() {
+    if (seoLoaded) return;
+    document.getElementById('seo-loading').style.display = 'block';
+    document.getElementById('seo-error').style.display = 'none';
+    document.getElementById('seo-content').style.display = 'none';
+    const rangeQuery = queryForRange(selectedPeriod);
+    try {
+      const [queries, pages] = await Promise.all([
+        apiFetch(`/api/search-console/queries?${rangeQuery}`),
+        apiFetch(`/api/search-console/pages?${rangeQuery}`)
+      ]);
+      renderSCQueries(queries);
+      renderSCPages(pages);
+      document.getElementById('seo-content').style.display = 'block';
+      seoLoaded = true;
+    } catch (err) {
+      const el = document.getElementById('seo-error');
+      el.textContent = 'Error al cargar Search Console: ' + err.message;
+      el.style.display = 'block';
+    } finally {
+      document.getElementById('seo-loading').style.display = 'none';
+    }
+  }
+
+  function posBadge(pos) {
+    if (!pos) return '<span class="pos-badge pos-rest">–</span>';
+    const cls = pos <= 3 ? 'pos-top3' : pos <= 10 ? 'pos-top10' : 'pos-rest';
+    return `<span class="pos-badge ${cls}">${pos}</span>`;
+  }
+
+  function renderSCQueries(rows) {
+    const tbody = document.getElementById('table-sc-queries');
+    if (!rows.length) {
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#64748b;padding:24px">Sin datos para este período</td></tr>';
+      return;
+    }
+    tbody.innerHTML = rows.map(r => `
+      <tr>
+        <td>${escHtml(r.keyword)}</td>
+        <td>${r.clicks.toLocaleString()}</td>
+        <td>${r.impressions.toLocaleString()}</td>
+        <td class="bounce">${r.ctr}%</td>
+        <td>${posBadge(r.position)}</td>
+      </tr>`).join('');
+  }
+
+  function renderSCPages(rows) {
+    const tbody = document.getElementById('table-sc-pages');
+    if (!rows.length) {
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#64748b;padding:24px">Sin datos para este período</td></tr>';
+      return;
+    }
+    tbody.innerHTML = rows.map(r => `
+      <tr>
+        <td>${escHtml(r.page)}</td>
+        <td>${r.clicks.toLocaleString()}</td>
+        <td>${r.impressions.toLocaleString()}</td>
+        <td class="bounce">${r.ctr}%</td>
+        <td>${posBadge(r.position)}</td>
+      </tr>`).join('');
+  }
+
+  // ── Keywords / Semrush ────────────────────────────────────────────────────
+
+  let allKeywords = [];
+
+  async function loadKeywords() {
+    try {
+      const data = await apiFetch('/api/keywords');
+      allKeywords = data.rows || [];
+      if (!allKeywords.length) {
+        document.getElementById('keywords-empty').style.display = 'block';
+        document.getElementById('keywords-content').style.display = 'none';
+        return;
+      }
+      document.getElementById('keywords-empty').style.display = 'none';
+      document.getElementById('keywords-content').style.display = 'block';
+      const meta = document.getElementById('keywords-meta');
+      const d = new Date(data.lastUpdate);
+      const when = isNaN(d) ? '' : ` · Subido ${d.toLocaleDateString('es-ES', { day:'numeric', month:'short', year:'numeric' })}`;
+      meta.textContent = `${allKeywords.length} keywords cargadas — mes ${allKeywords[0]?.month || '–'}${when}`;
+      filterKeywords('all', document.querySelector('.kw-filter.active'));
+    } catch (err) {
+      console.error('Error loading keywords:', err);
+    }
+  }
+
+  function filterKeywords(filter, btn) {
+    document.querySelectorAll('.kw-filter').forEach(b => b.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+    let rows = allKeywords;
+    const titles = { all: 'Todas las keywords', top3: 'Keywords en Top 3', rising: 'Keywords subiendo', falling: 'Keywords bajando', risk: 'Keywords en riesgo (bajaron 3+ puestos)' };
+    if (filter === 'top3')   rows = rows.filter(r => r.position !== null && r.position <= 3);
+    if (filter === 'rising') rows = rows.filter(r => r.change !== null && r.change > 0);
+    if (filter === 'falling') rows = rows.filter(r => r.change !== null && r.change < 0);
+    if (filter === 'risk')   rows = rows.filter(r => r.change !== null && r.change <= -3);
+    document.getElementById('keywords-table-title').textContent = `${titles[filter] || 'Keywords'} (${rows.length})`;
+    renderKeywordsTable(rows);
+  }
+
+  function renderKeywordsTable(rows) {
+    const tbody = document.getElementById('table-keywords');
+    if (!rows.length) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#64748b;padding:24px">Sin resultados para este filtro</td></tr>';
+      return;
+    }
+    tbody.innerHTML = rows.map(r => {
+      const chg = r.change;
+      const chgText = chg === null ? '–' : chg > 0 ? `↑ ${chg}` : chg < 0 ? `↓ ${Math.abs(chg)}` : '=';
+      const chgCls  = chg === null ? 'change-flat' : chg > 0 ? 'change-up' : chg < 0 ? 'change-down' : 'change-flat';
+      const shortUrl = r.url ? r.url.replace(/^https?:\/\/[^/]+/, '') || '/' : '–';
+      return `<tr>
+        <td>${escHtml(r.keyword)}</td>
+        <td>${posBadge(r.position)}</td>
+        <td style="color:#64748b">${r.prevPosition ?? '–'}</td>
+        <td><span class="${chgCls}">${chgText}</span></td>
+        <td>${r.volume ? r.volume.toLocaleString() : '–'}</td>
+        <td style="color:#64748b;font-size:12px">${escHtml(shortUrl)}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  // ── Admin upload ──────────────────────────────────────────────────────────
+
+  async function uploadSemrush() {
+    const pin  = document.getElementById('admin-pin-input').value.trim();
+    const file = document.getElementById('admin-file-input').files[0];
+    const resultEl = document.getElementById('admin-result');
+    const btn = document.getElementById('admin-upload-btn');
+
+    resultEl.style.display = 'none';
+    if (!pin)  { showAdminResult('error', 'Ingresa el PIN admin.'); return; }
+    if (!file) { showAdminResult('error', 'Selecciona un archivo CSV.'); return; }
+
+    btn.disabled = true;
+    btn.textContent = 'Subiendo…';
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      try {
+        const r = await fetch(BACKEND + '/admin/upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ pin, csv: e.target.result, filename: file.name })
+        });
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.error);
+        showAdminResult('ok', `✅ ${data.rows} keywords cargadas correctamente. Mes: ${data.month || '–'}`);
+        document.getElementById('admin-pin-input').value = '';
+        document.getElementById('admin-file-input').value = '';
+      } catch (err) {
+        showAdminResult('error', '❌ ' + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Subir archivo';
+      }
+    };
+    reader.onerror = () => { showAdminResult('error', 'No se pudo leer el archivo.'); btn.disabled = false; btn.textContent = 'Subir archivo'; };
+    reader.readAsText(file);
+  }
+
+  function showAdminResult(type, msg) {
+    const el = document.getElementById('admin-result');
+    el.style.display = 'block';
+    el.style.background = type === 'ok' ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)';
+    el.style.border = type === 'ok' ? '1px solid rgba(16,185,129,0.3)' : '1px solid rgba(239,68,68,0.3)';
+    el.style.color = type === 'ok' ? '#10b981' : '#f87171';
+    el.textContent = msg;
+  }
+
+  // ── Admin panel init ──────────────────────────────────────────────────────
+
+  (function initAdminPanel() {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('admin') === '1') {
+      document.getElementById('screen-pin-enter').style.display = 'none';
+      const adminEl = document.getElementById('screen-admin');
+      adminEl.style.display = 'flex';
+    }
+  })();
 </script>
 </body>
 </html>

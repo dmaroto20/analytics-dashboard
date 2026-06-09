@@ -19,7 +19,7 @@ app.use(cors({
   methods: ['GET', 'POST', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 
 const propertyId = process.env.PROPERTY_ID || '414258625';
 const CLIENT_ID = process.env.OAUTH_CLIENT_ID;
@@ -30,14 +30,20 @@ const SERVICE_ACCOUNT_EMAIL = process.env.SERVICE_ACCOUNT_EMAIL;
 const SERVICE_ACCOUNT_PRIVATE_KEY = process.env.SERVICE_ACCOUNT_PRIVATE_KEY?.replace(/\\n/g, '\n');
 const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token';
 const GA_SCOPE = 'https://www.googleapis.com/auth/analytics.readonly';
+const SC_SCOPE = 'https://www.googleapis.com/auth/webmasters.readonly';
+const SEARCH_CONSOLE_SITE_URL = process.env.SEARCH_CONSOLE_SITE_URL;
+const ADMIN_PIN = process.env.ADMIN_PIN || '9999';
 
 let storedTokens = GOOGLE_REFRESH_TOKEN ? { refresh_token: GOOGLE_REFRESH_TOKEN } : null;
 let serviceAccountToken = null;
+let scToken = null;
+let semrushData = [];
 
 const hasServiceAccount = Boolean(SERVICE_ACCOUNT_EMAIL && SERVICE_ACCOUNT_PRIVATE_KEY);
 const hasRefreshToken = Boolean(GOOGLE_REFRESH_TOKEN && CLIENT_ID && CLIENT_SECRET);
 
-// Auth - redirigir a Google
+// ── Auth routes ──────────────────────────────────────────────────────────────
+
 app.get('/auth/login', (req, res) => {
   if (hasServiceAccount || hasRefreshToken) {
     return res.send(`
@@ -68,7 +74,6 @@ app.get('/auth/login', (req, res) => {
   res.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${params}`);
 });
 
-// Auth - callback de Google
 app.get('/auth/callback', async (req, res) => {
   const { code } = req.query;
   try {
@@ -99,13 +104,14 @@ app.get('/auth/callback', async (req, res) => {
   }
 });
 
-// Auth - estado
 app.get('/auth/status', (req, res) => {
   res.json({
     authenticated: hasServiceAccount || hasRefreshToken || !!storedTokens,
     mode: hasServiceAccount ? 'service_account' : (hasRefreshToken ? 'refresh_token' : 'oauth')
   });
 });
+
+// ── Token helpers ─────────────────────────────────────────────────────────────
 
 const getServiceAccountToken = async () => {
   if (serviceAccountToken?.expires_at && Date.now() < serviceAccountToken.expires_at - 60000) {
@@ -114,13 +120,7 @@ const getServiceAccountToken = async () => {
 
   const now = Math.floor(Date.now() / 1000);
   const assertion = jwt.sign(
-    {
-      iss: SERVICE_ACCOUNT_EMAIL,
-      scope: GA_SCOPE,
-      aud: GOOGLE_TOKEN_URL,
-      exp: now + 3600,
-      iat: now
-    },
+    { iss: SERVICE_ACCOUNT_EMAIL, scope: GA_SCOPE, aud: GOOGLE_TOKEN_URL, exp: now + 3600, iat: now },
     SERVICE_ACCOUNT_PRIVATE_KEY,
     { algorithm: 'RS256' }
   );
@@ -142,12 +142,11 @@ const getServiceAccountToken = async () => {
   return serviceAccountToken.access_token;
 };
 
-// Obtener access token válido
 const getAccessToken = async () => {
   if (hasServiceAccount) return getServiceAccountToken();
 
   if (!storedTokens) throw new Error('No autenticado. Visita /auth/login primero.');
-  
+
   if (!storedTokens.access_token || !storedTokens.expires_at || Date.now() > storedTokens.expires_at - 60000) {
     if (!storedTokens.refresh_token) {
       storedTokens = null;
@@ -165,6 +164,44 @@ const getAccessToken = async () => {
   return storedTokens.access_token;
 };
 
+// Search Console uses its own scope — separate JWT for service accounts
+const getSearchConsoleToken = async () => {
+  if (scToken?.expires_at && Date.now() < scToken.expires_at - 60000) {
+    return scToken.access_token;
+  }
+
+  const now = Math.floor(Date.now() / 1000);
+  const assertion = jwt.sign(
+    { iss: SERVICE_ACCOUNT_EMAIL, scope: SC_SCOPE, aud: GOOGLE_TOKEN_URL, exp: now + 3600, iat: now },
+    SERVICE_ACCOUNT_PRIVATE_KEY,
+    { algorithm: 'RS256' }
+  );
+
+  const params = new URLSearchParams({
+    grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+    assertion
+  });
+
+  const response = await axios.post(GOOGLE_TOKEN_URL, params, {
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+  });
+
+  scToken = {
+    access_token: response.data.access_token,
+    expires_at: Date.now() + response.data.expires_in * 1000
+  };
+
+  return scToken.access_token;
+};
+
+// For OAuth mode the existing token is reused (requires webmasters scope to have been granted)
+const getSearchConsoleAccessToken = async () => {
+  if (hasServiceAccount) return getSearchConsoleToken();
+  return getAccessToken();
+};
+
+// ── Date helpers ──────────────────────────────────────────────────────────────
+
 const getDateRange = (days) => {
   const endDate = new Date().toISOString().split('T')[0];
   const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
@@ -179,7 +216,6 @@ const resolveDateRange = (query, defaultDays = 30) => {
   if (isISODate(query.startDate) && isISODate(query.endDate)) {
     return { startDate: query.startDate, endDate: query.endDate };
   }
-
   return getDateRange(parseInt(query.days || defaultDays));
 };
 
@@ -215,7 +251,76 @@ const getCurrentMonthRange = () => {
   };
 };
 
-// Summary
+// ── CSV helpers (Semrush) ─────────────────────────────────────────────────────
+
+function findCol(headers, candidates) {
+  for (const name of candidates) {
+    const idx = headers.findIndex(h => h.toLowerCase().trim() === name.toLowerCase());
+    if (idx !== -1) return idx;
+  }
+  // fallback: partial match
+  for (const name of candidates) {
+    const idx = headers.findIndex(h => h.toLowerCase().includes(name.toLowerCase()));
+    if (idx !== -1) return idx;
+  }
+  return -1;
+}
+
+function splitCsvLine(line, sep) {
+  const result = [];
+  let current = '';
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    if (line[i] === '"') { inQuotes = !inQuotes; continue; }
+    if (line[i] === sep && !inQuotes) { result.push(current.trim()); current = ''; continue; }
+    current += line[i];
+  }
+  result.push(current.trim());
+  return result;
+}
+
+function parseSemrushCsv(csv, filename) {
+  const lines = csv.split('\n').map(l => l.trim()).filter(Boolean);
+  if (!lines.length) throw new Error('CSV vacío');
+
+  const sep = lines[0].includes(';') ? ';' : ',';
+  const headers = splitCsvLine(lines[0], sep);
+
+  const keywordCol  = findCol(headers, ['keyword', 'Keyword', 'palabra clave']);
+  const posCol      = findCol(headers, ['position', 'Position', 'posición', 'pos.', 'Pos.']);
+  const prevPosCol  = findCol(headers, ['previous position', 'Previous Position', 'posición anterior', 'Prev. Position']);
+  const volumeCol   = findCol(headers, ['search volume', 'Search Volume', 'volume', 'Volume', 'volumen']);
+  const urlCol      = findCol(headers, ['url', 'URL', 'landing page', 'Landing Page']);
+  const diffCol     = findCol(headers, ['keyword difficulty', 'Keyword Difficulty', 'kd', 'KD', 'dificultad']);
+
+  if (keywordCol === -1) {
+    throw new Error(`No se encontró columna "Keyword". Encabezados detectados: ${headers.slice(0, 6).join(', ')}`);
+  }
+
+  const uploadedAt = new Date().toISOString();
+  const monthMatch = filename?.match(/\d{4}-\d{2}/);
+  const month = monthMatch ? monthMatch[0] : new Date().toISOString().substring(0, 7);
+
+  return lines.slice(1).map(line => {
+    const cols = splitCsvLine(line, sep);
+    const pos  = posCol !== -1  ? parseFloat(cols[posCol])     : null;
+    const prev = prevPosCol !== -1 ? parseFloat(cols[prevPosCol]) : null;
+    return {
+      keyword:     cols[keywordCol] || '',
+      position:    isNaN(pos)  ? null : pos,
+      prevPosition: isNaN(prev) ? null : prev,
+      change:      (!isNaN(pos) && !isNaN(prev) && pos !== null && prev !== null) ? (prev - pos) : null,
+      volume:      volumeCol !== -1 ? (parseInt(cols[volumeCol]) || null) : null,
+      url:         urlCol !== -1    ? (cols[urlCol] || '')                : '',
+      difficulty:  diffCol !== -1   ? (parseFloat(cols[diffCol]) || null) : null,
+      month,
+      _uploadedAt: uploadedAt
+    };
+  }).filter(r => r.keyword.trim());
+}
+
+// ── GA4 endpoints ─────────────────────────────────────────────────────────────
+
 app.get('/api/summary', async (req, res) => {
   try {
     const dateRange = resolveDateRange(req.query);
@@ -250,7 +355,6 @@ app.get('/api/summary', async (req, res) => {
   }
 });
 
-// Traffic
 app.get('/api/traffic', async (req, res) => {
   try {
     const dateRange = resolveDateRange(req.query);
@@ -283,7 +387,6 @@ app.get('/api/traffic', async (req, res) => {
   }
 });
 
-// Top pages
 app.get('/api/top-pages', async (req, res) => {
   try {
     const dateRange = resolveDateRange(req.query);
@@ -312,7 +415,6 @@ app.get('/api/top-pages', async (req, res) => {
   }
 });
 
-// Devices
 app.get('/api/devices', async (req, res) => {
   try {
     const dateRange = resolveDateRange(req.query);
@@ -346,7 +448,6 @@ app.get('/api/devices', async (req, res) => {
   }
 });
 
-// Sources
 app.get('/api/sources', async (req, res) => {
   try {
     const dateRange = resolveDateRange(req.query);
@@ -376,7 +477,6 @@ app.get('/api/sources', async (req, res) => {
   }
 });
 
-// Channel quality
 app.get('/api/channel-quality', async (req, res) => {
   try {
     const dateRange = resolveDateRange(req.query);
@@ -413,7 +513,6 @@ app.get('/api/channel-quality', async (req, res) => {
   }
 });
 
-// Geo
 app.get('/api/geo', async (req, res) => {
   try {
     const dateRange = resolveDateRange(req.query);
@@ -441,7 +540,6 @@ app.get('/api/geo', async (req, res) => {
   }
 });
 
-// New vs Returning
 app.get('/api/new-vs-returning', async (req, res) => {
   try {
     const dateRange = resolveDateRange(req.query);
@@ -473,18 +571,6 @@ app.get('/api/new-vs-returning', async (req, res) => {
   }
 });
 
-// Health
-app.get('/api/health', (req, res) => {
-  res.json({
-    status: 'ok',
-    propertyId,
-    authenticated: hasServiceAccount || hasRefreshToken || !!storedTokens,
-    authMode: hasServiceAccount ? 'service_account' : (hasRefreshToken ? 'refresh_token' : 'oauth'),
-    timestamp: new Date().toISOString()
-  });
-});
-
-// Monthly comparison
 app.get('/api/monthly-comparison', async (req, res) => {
   try {
     const months = Math.min(Math.max(parseInt(req.query.months || '6'), 2), 12);
@@ -536,10 +622,122 @@ app.get('/api/monthly-comparison', async (req, res) => {
   }
 });
 
+// ── Search Console endpoints ───────────────────────────────────────────────────
+
+app.get('/api/search-console/queries', async (req, res) => {
+  if (!SEARCH_CONSOLE_SITE_URL) {
+    return res.status(400).json({ error: 'SEARCH_CONSOLE_SITE_URL no configurado. Agrégalo como variable de entorno en Render.' });
+  }
+  try {
+    const dateRange = resolveDateRange(req.query, 28);
+    const token = await getSearchConsoleAccessToken();
+    const encodedSite = encodeURIComponent(SEARCH_CONSOLE_SITE_URL);
+
+    const response = await axios.post(
+      `https://www.googleapis.com/webmasters/v3/sites/${encodedSite}/searchAnalytics/query`,
+      {
+        startDate: dateRange.startDate,
+        endDate: dateRange.endDate,
+        dimensions: ['query'],
+        rowLimit: 25,
+        dataState: 'all'
+      },
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+
+    res.json((response.data.rows || []).map(r => ({
+      keyword:     r.keys[0],
+      clicks:      r.clicks,
+      impressions: r.impressions,
+      ctr:         Number((r.ctr * 100).toFixed(2)),
+      position:    Number(r.position.toFixed(1))
+    })));
+  } catch (err) {
+    res.status(500).json({ error: err.response?.data?.error?.message || err.message });
+  }
+});
+
+app.get('/api/search-console/pages', async (req, res) => {
+  if (!SEARCH_CONSOLE_SITE_URL) {
+    return res.status(400).json({ error: 'SEARCH_CONSOLE_SITE_URL no configurado.' });
+  }
+  try {
+    const dateRange = resolveDateRange(req.query, 28);
+    const token = await getSearchConsoleAccessToken();
+    const encodedSite = encodeURIComponent(SEARCH_CONSOLE_SITE_URL);
+
+    const response = await axios.post(
+      `https://www.googleapis.com/webmasters/v3/sites/${encodedSite}/searchAnalytics/query`,
+      {
+        startDate: dateRange.startDate,
+        endDate: dateRange.endDate,
+        dimensions: ['page'],
+        rowLimit: 15,
+        dataState: 'all'
+      },
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+
+    const base = SEARCH_CONSOLE_SITE_URL.replace(/\/$/, '');
+    res.json((response.data.rows || []).map(r => ({
+      page:        r.keys[0].replace(base, '') || '/',
+      clicks:      r.clicks,
+      impressions: r.impressions,
+      ctr:         Number((r.ctr * 100).toFixed(2)),
+      position:    Number(r.position.toFixed(1))
+    })));
+  } catch (err) {
+    res.status(500).json({ error: err.response?.data?.error?.message || err.message });
+  }
+});
+
+// ── Semrush CSV upload (admin, PIN protected) ─────────────────────────────────
+
+app.post('/admin/upload', (req, res) => {
+  const { pin, csv, filename } = req.body;
+  if (!pin || pin !== ADMIN_PIN) return res.status(403).json({ error: 'PIN incorrecto' });
+  if (!csv) return res.status(400).json({ error: 'CSV requerido' });
+  try {
+    const parsed = parseSemrushCsv(csv, filename || '');
+    semrushData = parsed;
+    res.json({ success: true, rows: parsed.length, month: parsed[0]?.month || null });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.get('/api/keywords', (req, res) => {
+  res.json({
+    rows: semrushData,
+    count: semrushData.length,
+    lastUpdate: semrushData[0]?._uploadedAt || null
+  });
+});
+
+// ── Health + index ─────────────────────────────────────────────────────────────
+
+app.get('/api/health', (req, res) => {
+  res.json({
+    status: 'ok',
+    propertyId,
+    searchConsole: Boolean(SEARCH_CONSOLE_SITE_URL),
+    authenticated: hasServiceAccount || hasRefreshToken || !!storedTokens,
+    authMode: hasServiceAccount ? 'service_account' : (hasRefreshToken ? 'refresh_token' : 'oauth'),
+    timestamp: new Date().toISOString()
+  });
+});
+
 app.get('/api', (req, res) => {
   res.json({
     message: 'Analytics Dashboard Backend',
-    endpoints: ['/auth/login', '/auth/status', '/api/health', '/api/summary', '/api/monthly-comparison', '/api/traffic', '/api/top-pages', '/api/devices', '/api/sources', '/api/channel-quality', '/api/geo', '/api/new-vs-returning']
+    endpoints: [
+      '/auth/login', '/auth/status', '/api/health',
+      '/api/summary', '/api/monthly-comparison', '/api/traffic',
+      '/api/top-pages', '/api/devices', '/api/sources',
+      '/api/channel-quality', '/api/geo', '/api/new-vs-returning',
+      '/api/search-console/queries', '/api/search-console/pages',
+      '/api/keywords', '/admin/upload'
+    ]
   });
 });
 
@@ -551,4 +749,3 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Backend corriendo en puerto ${PORT}`);
 });
-
