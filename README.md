@@ -56,3 +56,11 @@ http://localhost:3000/
 ## Notas de seguridad
 
 El PIN del dashboard esta en el HTML, por lo que sirve como una barrera simple de interfaz, no como seguridad real. Para proteger el dashboard de forma fuerte, conviene mover ese control al backend o activar autenticacion del proveedor de hosting.
+
+## Documentacion operativa
+
+La configuracion real de Render, Google OAuth, Analytics y el archivo que se sube a la web esta documentada en:
+
+```text
+DEPLOYMENT.md
+```
