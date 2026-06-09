@@ -141,6 +141,26 @@ Debe responder:
 - `closedMonths`: meses completos para comparar de forma justa.
 - `currentMonth`: mes actual parcial, solo como referencia.
 
+Los endpoints principales aceptan rangos personalizados con:
+
+```text
+?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD
+```
+
+Ejemplo:
+
+```text
+https://analytics-dashboard-7teo.onrender.com/api/summary?startDate=2026-06-01&endDate=2026-06-09
+```
+
+La pestaña de adquisicion usa tambien:
+
+```text
+https://analytics-dashboard-7teo.onrender.com/api/channel-quality?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD
+```
+
+Ese endpoint compara calidad por canal: personas, visitas, permanencia promedio, interes y conversiones.
+
 ## Google Cloud OAuth
 
 Proyecto Google Cloud usado:

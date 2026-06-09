@@ -173,6 +173,16 @@ const getDateRange = (days) => {
 
 const toISODate = (date) => date.toISOString().split('T')[0];
 
+const isISODate = (value) => /^\d{4}-\d{2}-\d{2}$/.test(value || '');
+
+const resolveDateRange = (query, defaultDays = 30) => {
+  if (isISODate(query.startDate) && isISODate(query.endDate)) {
+    return { startDate: query.startDate, endDate: query.endDate };
+  }
+
+  return getDateRange(parseInt(query.days || defaultDays));
+};
+
 const getClosedMonthlyRanges = (months = 6) => {
   const today = new Date();
   const ranges = [];
@@ -208,8 +218,7 @@ const getCurrentMonthRange = () => {
 // Summary
 app.get('/api/summary', async (req, res) => {
   try {
-    const { days = 30 } = req.query;
-    const dateRange = getDateRange(parseInt(days));
+    const dateRange = resolveDateRange(req.query);
     const token = await getAccessToken();
 
     const response = await axios.post(
@@ -218,7 +227,8 @@ app.get('/api/summary', async (req, res) => {
         dateRanges: [{ startDate: dateRange.startDate, endDate: dateRange.endDate }],
         metrics: [
           { name: 'activeUsers' }, { name: 'sessions' }, { name: 'screenPageViews' },
-          { name: 'bounceRate' }, { name: 'averageSessionDuration' }, { name: 'conversions' }
+          { name: 'bounceRate' }, { name: 'averageSessionDuration' }, { name: 'conversions' },
+          { name: 'engagementRate' }
         ]
       },
       { headers: { Authorization: `Bearer ${token}` } }
@@ -231,7 +241,9 @@ app.get('/api/summary', async (req, res) => {
       pageViews: parseInt(row[2]?.value) || 0,
       bounceRate: ((parseFloat(row[3]?.value) || 0) * 100).toFixed(2),
       avgSessionDuration: row[4]?.value ? `${Math.floor(row[4].value / 60)}m ${Math.floor(row[4].value % 60)}s` : '0m',
-      conversions: parseInt(row[5]?.value) || 0
+      avgSessionDurationSeconds: Math.round(parseFloat(row[4]?.value) || 0),
+      conversions: parseInt(row[5]?.value) || 0,
+      engagementRate: Number(((parseFloat(row[6]?.value) || 0) * 100).toFixed(2))
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -241,8 +253,7 @@ app.get('/api/summary', async (req, res) => {
 // Traffic
 app.get('/api/traffic', async (req, res) => {
   try {
-    const { days = 30 } = req.query;
-    const dateRange = getDateRange(parseInt(days));
+    const dateRange = resolveDateRange(req.query);
     const token = await getAccessToken();
 
     const response = await axios.post(
@@ -275,8 +286,7 @@ app.get('/api/traffic', async (req, res) => {
 // Top pages
 app.get('/api/top-pages', async (req, res) => {
   try {
-    const { days = 30 } = req.query;
-    const dateRange = getDateRange(parseInt(days));
+    const dateRange = resolveDateRange(req.query);
     const token = await getAccessToken();
 
     const response = await axios.post(
@@ -305,8 +315,7 @@ app.get('/api/top-pages', async (req, res) => {
 // Devices
 app.get('/api/devices', async (req, res) => {
   try {
-    const { days = 30 } = req.query;
-    const dateRange = getDateRange(parseInt(days));
+    const dateRange = resolveDateRange(req.query);
     const token = await getAccessToken();
 
     const response = await axios.post(
@@ -340,8 +349,7 @@ app.get('/api/devices', async (req, res) => {
 // Sources
 app.get('/api/sources', async (req, res) => {
   try {
-    const { days = 30 } = req.query;
-    const dateRange = getDateRange(parseInt(days));
+    const dateRange = resolveDateRange(req.query);
     const token = await getAccessToken();
 
     const response = await axios.post(
@@ -368,11 +376,47 @@ app.get('/api/sources', async (req, res) => {
   }
 });
 
+// Channel quality
+app.get('/api/channel-quality', async (req, res) => {
+  try {
+    const dateRange = resolveDateRange(req.query);
+    const token = await getAccessToken();
+
+    const response = await axios.post(
+      `https://analyticsdata.googleapis.com/v1beta/properties/${propertyId}:runReport`,
+      {
+        dateRanges: [{ startDate: dateRange.startDate, endDate: dateRange.endDate }],
+        dimensions: [{ name: 'sessionDefaultChannelGroup' }],
+        metrics: [
+          { name: 'activeUsers' },
+          { name: 'sessions' },
+          { name: 'averageSessionDuration' },
+          { name: 'engagementRate' },
+          { name: 'conversions' }
+        ],
+        orderBys: [{ metric: { metricName: 'sessions' }, desc: true }],
+        limit: 10
+      },
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+
+    res.json((response.data.rows || []).map(row => ({
+      channel: row.dimensionValues?.[0]?.value || 'Unknown',
+      users: parseInt(row.metricValues?.[0]?.value) || 0,
+      sessions: parseInt(row.metricValues?.[1]?.value) || 0,
+      avgSessionDurationSeconds: Math.round(parseFloat(row.metricValues?.[2]?.value) || 0),
+      engagementRate: Number(((parseFloat(row.metricValues?.[3]?.value) || 0) * 100).toFixed(2)),
+      conversions: parseInt(row.metricValues?.[4]?.value) || 0
+    })));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Geo
 app.get('/api/geo', async (req, res) => {
   try {
-    const { days = 30 } = req.query;
-    const dateRange = getDateRange(parseInt(days));
+    const dateRange = resolveDateRange(req.query);
     const token = await getAccessToken();
 
     const response = await axios.post(
@@ -400,8 +444,7 @@ app.get('/api/geo', async (req, res) => {
 // New vs Returning
 app.get('/api/new-vs-returning', async (req, res) => {
   try {
-    const { days = 30 } = req.query;
-    const dateRange = getDateRange(parseInt(days));
+    const dateRange = resolveDateRange(req.query);
     const token = await getAccessToken();
 
     const response = await axios.post(
@@ -496,7 +539,7 @@ app.get('/api/monthly-comparison', async (req, res) => {
 app.get('/api', (req, res) => {
   res.json({
     message: 'Analytics Dashboard Backend',
-    endpoints: ['/auth/login', '/auth/status', '/api/health', '/api/summary', '/api/monthly-comparison', '/api/traffic', '/api/top-pages', '/api/devices', '/api/sources', '/api/geo', '/api/new-vs-returning']
+    endpoints: ['/auth/login', '/auth/status', '/api/health', '/api/summary', '/api/monthly-comparison', '/api/traffic', '/api/top-pages', '/api/devices', '/api/sources', '/api/channel-quality', '/api/geo', '/api/new-vs-returning']
   });
 });
 
@@ -508,3 +551,4 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Backend corriendo en puerto ${PORT}`);
 });
+
