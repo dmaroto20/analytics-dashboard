@@ -283,40 +283,75 @@ function parseSemrushCsv(csv, filename) {
   const lines = csv.split('\n').map(l => l.trim()).filter(Boolean);
   if (!lines.length) throw new Error('CSV vacío');
 
-  const sep = lines[0].includes(';') ? ';' : ',';
-  const headers = splitCsvLine(lines[0], sep);
+  // Semrush exports include a metadata block before the real header — skip it
+  const headerLineIdx = lines.findIndex(l => /^keyword[,;]/i.test(l));
+  if (headerLineIdx === -1) {
+    throw new Error('No se encontró la fila de encabezados. Asegúrate de exportar desde Semrush → Position Tracking → Export.');
+  }
 
-  const keywordCol  = findCol(headers, ['keyword', 'Keyword', 'palabra clave']);
-  const posCol      = findCol(headers, ['position', 'Position', 'posición', 'pos.', 'Pos.']);
-  const prevPosCol  = findCol(headers, ['previous position', 'Previous Position', 'posición anterior', 'Prev. Position']);
-  const volumeCol   = findCol(headers, ['search volume', 'Search Volume', 'volume', 'Volume', 'volumen']);
-  const urlCol      = findCol(headers, ['url', 'URL', 'landing page', 'Landing Page']);
-  const diffCol     = findCol(headers, ['keyword difficulty', 'Keyword Difficulty', 'kd', 'KD', 'dificultad']);
+  const sep = lines[headerLineIdx].includes(';') ? ';' : ',';
+  const headers = splitCsvLine(lines[headerLineIdx], sep);
 
-  if (keywordCol === -1) {
-    throw new Error(`No se encontró columna "Keyword". Encabezados detectados: ${headers.slice(0, 6).join(', ')}`);
+  // Detect date-based position columns: headers ending in _YYYYMMDD (no extra suffix)
+  const datePattern = /_(\d{8})$/;
+  const positionCols = headers
+    .map((h, i) => ({ header: h, idx: i, date: (h.match(datePattern) || [])[1] }))
+    .filter(c => c.date)
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  const currentCol  = positionCols.length > 0 ? positionCols[positionCols.length - 1].idx : -1;
+  const previousCol = positionCols.length > 1 ? positionCols[positionCols.length - 2].idx : -1;
+  // Landing URL is 2 columns after the position column (pos, type, landing)
+  const landingCol  = currentCol !== -1 ? currentCol + 2 : -1;
+
+  const diffCol      = headers.findIndex(h => h.includes('_difference'));
+  const volumeCol    = findCol(headers, ['Search Volume', 'search volume', 'Volume', 'volumen']);
+  const difficultyCol = findCol(headers, ['Keyword Difficulty', 'keyword difficulty', 'KD', 'kd', 'dificultad']);
+
+  if (currentCol === -1) {
+    throw new Error(`No se encontraron columnas de posición por fecha. Encabezados detectados: ${headers.slice(0, 5).join(', ')}`);
   }
 
   const uploadedAt = new Date().toISOString();
   const monthMatch = filename?.match(/\d{4}-\d{2}/);
-  const month = monthMatch ? monthMatch[0] : new Date().toISOString().substring(0, 7);
+  // Also try to detect month from last date column
+  const lastDate = positionCols.length ? positionCols[positionCols.length - 1].date : null;
+  const month = monthMatch
+    ? monthMatch[0]
+    : lastDate
+      ? `${lastDate.substring(0, 4)}-${lastDate.substring(4, 6)}`
+      : new Date().toISOString().substring(0, 7);
 
-  return lines.slice(1).map(line => {
+  const parsePos = (val) => {
+    if (!val || val === '-' || val === 'n/a') return null;
+    const n = parseFloat(val);
+    return isNaN(n) ? null : n;
+  };
+
+  return lines.slice(headerLineIdx + 1).map(line => {
     const cols = splitCsvLine(line, sep);
-    const pos  = posCol !== -1  ? parseFloat(cols[posCol])     : null;
-    const prev = prevPosCol !== -1 ? parseFloat(cols[prevPosCol]) : null;
-    return {
-      keyword:     cols[keywordCol] || '',
-      position:    isNaN(pos)  ? null : pos,
-      prevPosition: isNaN(prev) ? null : prev,
-      change:      (!isNaN(pos) && !isNaN(prev) && pos !== null && prev !== null) ? (prev - pos) : null,
-      volume:      volumeCol !== -1 ? (parseInt(cols[volumeCol]) || null) : null,
-      url:         urlCol !== -1    ? (cols[urlCol] || '')                : '',
-      difficulty:  diffCol !== -1   ? (parseFloat(cols[diffCol]) || null) : null,
-      month,
-      _uploadedAt: uploadedAt
-    };
-  }).filter(r => r.keyword.trim());
+    const keyword = cols[0]?.trim();
+    if (!keyword) return null;
+
+    const pos  = parsePos(cols[currentCol]);
+    const prev = parsePos(cols[previousCol]);
+
+    // Use Semrush difference column when available; positive = improved, negative = dropped
+    let change = null;
+    const diffRaw = diffCol !== -1 ? cols[diffCol] : null;
+    if (diffRaw && diffRaw !== '-' && diffRaw !== 'n/a') {
+      const d = parseFloat(diffRaw);
+      if (!isNaN(d)) change = d;
+    } else if (pos !== null && prev !== null) {
+      change = prev - pos;
+    }
+
+    const url = landingCol !== -1 ? (cols[landingCol] || '') : '';
+    const volume = volumeCol !== -1 ? (parseInt(cols[volumeCol]) || null) : null;
+    const difficulty = difficultyCol !== -1 ? (parseFloat(cols[difficultyCol]) || null) : null;
+
+    return { keyword, position: pos, prevPosition: prev, change, volume, url, difficulty, month, _uploadedAt: uploadedAt };
+  }).filter(Boolean);
 }
 
 // ── GA4 endpoints ─────────────────────────────────────────────────────────────
