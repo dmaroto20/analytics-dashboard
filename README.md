@@ -64,3 +64,9 @@ La configuracion real de Render, Google OAuth, Analytics y el archivo que se sub
 ```text
 DEPLOYMENT.md
 ```
+
+La vision del portal futuro de inteligencia digital, incluyendo Search Console, keywords, Adwords y competencia, esta documentada en:
+
+```text
+DIGITAL_INTELLIGENCE_ROADMAP.md
+```

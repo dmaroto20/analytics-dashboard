@@ -161,6 +161,16 @@ https://analytics-dashboard-7teo.onrender.com/api/channel-quality?startDate=YYYY
 
 Ese endpoint compara calidad por canal: personas, visitas, permanencia promedio, interes y conversiones.
 
+## Vision futura
+
+El dashboard actual forma parte de una vision mas amplia para convertirlo en un portal de inteligencia digital con modulos de Analytics, Search Console, keywords, Adwords y competencia.
+
+Esa propuesta completa esta en:
+
+```text
+DIGITAL_INTELLIGENCE_ROADMAP.md
+```
+
 ## Google Cloud OAuth
 
 Proyecto Google Cloud usado:
