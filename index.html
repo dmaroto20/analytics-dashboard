@@ -167,7 +167,7 @@
       <div style="font-size:28px">⚠️</div>
       <div class="ga-banner-text">
         <div class="ga-banner-title">Autorización de Google Analytics pendiente</div>
-        <div class="ga-banner-desc">El backend no tiene acceso a Google Analytics. Autoriza con tu cuenta de Gmail para ver datos reales.</div>
+        <div class="ga-banner-desc">El backend no tiene acceso a Google Analytics. Revisa la configuración del servidor para ver datos reales.</div>
       </div>
       <a id="ga-auth-link" href="#" target="_blank" rel="noopener noreferrer" class="btn-ga-auth">
         Autorizar con Google →
@@ -298,19 +298,20 @@
     try {
       const r = await fetch(BACKEND + '/auth/status');
       const j = await r.json();
-      return j.authenticated;
-    } catch { return false; }
+      return j;
+    } catch { return { authenticated: false, mode: 'unknown' }; }
   }
 
   async function loadAll() {
     setLoading(true);
     hideError('error-banner');
 
-    const authed = await checkAuth();
+    const auth = await checkAuth();
+    const authed = auth.authenticated;
     document.getElementById('ga-status-label').textContent = authed
-      ? '🟢 Conectado a Google Analytics'
+      ? (auth.mode === 'service_account' ? '🟢 Conectado a Google Analytics' : '🟢 Google Analytics autorizado')
       : '🔴 No autenticado con Google Analytics';
-    document.getElementById('ga-banner').style.display = authed ? 'none' : 'flex';
+    document.getElementById('ga-banner').style.display = authed || auth.mode === 'service_account' ? 'none' : 'flex';
 
     if (!authed) { setLoading(false); return; }
 
