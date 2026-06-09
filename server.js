@@ -153,13 +153,19 @@ const getAccessToken = async () => {
       throw new Error('La sesión expiró. Visita /auth/login para autorizar de nuevo.');
     }
 
-    const response = await axios.post('https://oauth2.googleapis.com/token', {
-      client_id: CLIENT_ID,
-      client_secret: CLIENT_SECRET,
-      refresh_token: storedTokens.refresh_token,
-      grant_type: 'refresh_token'
-    });
-    storedTokens = { ...storedTokens, ...response.data, expires_at: Date.now() + response.data.expires_in * 1000 };
+    try {
+      const response = await axios.post('https://oauth2.googleapis.com/token', {
+        client_id: CLIENT_ID,
+        client_secret: CLIENT_SECRET,
+        refresh_token: storedTokens.refresh_token,
+        grant_type: 'refresh_token'
+      });
+      console.log('[auth] Token exchange OK, scopes:', response.data.scope);
+      storedTokens = { ...storedTokens, ...response.data, expires_at: Date.now() + response.data.expires_in * 1000 };
+    } catch (tokenErr) {
+      console.error('[auth] Token exchange FAILED:', tokenErr.response?.data || tokenErr.message);
+      throw new Error('Token inválido: ' + JSON.stringify(tokenErr.response?.data || tokenErr.message));
+    }
   }
   return storedTokens.access_token;
 };
