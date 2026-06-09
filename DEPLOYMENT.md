@@ -130,6 +130,14 @@ Respuesta esperada:
 {"status":"ok","propertyId":"414258625","authenticated":true,"authMode":"refresh_token"}
 ```
 
+El dashboard ejecutivo tambien usa este endpoint para el comparativo mensual:
+
+```text
+https://analytics-dashboard-7teo.onrender.com/api/monthly-comparison?months=6
+```
+
+Debe responder una lista de meses con usuarios, visitas, vistas, interes y conversiones.
+
 ## Google Cloud OAuth
 
 Proyecto Google Cloud usado:

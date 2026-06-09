@@ -114,6 +114,50 @@
     .state-box .icon { font-size: 42px; margin-bottom: 14px; }
     .error-banner { padding: 14px 18px; background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.3); border-radius: 10px; color: #f87171; font-size: 14px; margin-bottom: 20px; }
 
+    /* Executive summary */
+    .exec-panel {
+      display: grid; grid-template-columns: 1.3fr .7fr; gap: 18px; margin-bottom: 24px;
+      background: linear-gradient(135deg, rgba(15,36,96,0.9), rgba(26,58,143,0.7));
+      border: 1px solid rgba(255,255,255,0.12); border-radius: 12px; padding: 22px;
+    }
+    .exec-eyebrow {
+      font-family: 'Barlow Condensed', sans-serif; font-size: 12px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 1px; color: rgba(255,255,255,0.62); margin-bottom: 7px;
+    }
+    .exec-title {
+      font-family: 'Barlow Condensed', sans-serif; font-size: 28px; font-weight: 800;
+      letter-spacing: .3px; color: #ffffff; margin-bottom: 8px;
+    }
+    .exec-copy { color: rgba(255,255,255,0.72); font-size: 14px; line-height: 1.45; max-width: 680px; }
+    .exec-status {
+      align-self: center; justify-self: end; background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.18); border-radius: 10px; padding: 14px 16px; min-width: 210px;
+    }
+    .exec-status-label { font-size: 11px; color: rgba(255,255,255,0.6); text-transform: uppercase; letter-spacing: .08em; }
+    .exec-status-value { font-family: 'Barlow Condensed', sans-serif; font-size: 24px; font-weight: 800; color: #ffffff; margin-top: 4px; }
+    .exec-status-note { color: rgba(255,255,255,0.68); font-size: 12px; margin-top: 2px; }
+    @media (max-width: 820px) { .exec-panel { grid-template-columns: 1fr; } .exec-status { justify-self: stretch; } }
+
+    .simple-kpi-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; margin-bottom: 28px; }
+    .simple-kpi {
+      background: rgba(255,255,255,0.96); color: #0f172a; border-radius: 10px; padding: 18px;
+      border: 1px solid rgba(226,232,240,0.86); box-shadow: 0 8px 22px rgba(15,23,42,0.12);
+      position: relative; overflow: hidden;
+    }
+    .simple-kpi::before { content: ''; position: absolute; inset: 0 0 auto 0; height: 4px; background: var(--omega-blue); }
+    .simple-kpi.good::before { background: #16a34a; }
+    .simple-kpi.warn::before { background: #d97706; }
+    .simple-kpi.bad::before { background: var(--omega-red); }
+    .simple-kpi-label { color: #64748b; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 8px; }
+    .simple-kpi-value { font-family: 'Barlow Condensed', sans-serif; font-size: 34px; line-height: 1; font-weight: 800; color: var(--omega-blue-dark); }
+    .simple-kpi-change { display: inline-block; margin-top: 8px; font-size: 12px; font-weight: 700; }
+    .simple-kpi-change.up { color: #16a34a; }
+    .simple-kpi-change.down { color: #dc2626; }
+    .simple-kpi-change.flat { color: #d97706; }
+    .simple-kpi-note { margin-top: 6px; color: #64748b; font-size: 12px; line-height: 1.35; }
+    @media (max-width: 960px) { .simple-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    @media (max-width: 560px) { .simple-kpi-grid { grid-template-columns: 1fr; } }
+
     /* KPI grid */
     .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 16px; margin-bottom: 28px; }
     .kpi-card {
@@ -136,6 +180,25 @@
     }
     .card-title { font-size: 15px; font-weight: 600; margin-bottom: 18px; color: #f1f5f9; }
     .chart-wrap { position: relative; height: 260px; }
+    .monthly-wrap { position: relative; height: 300px; }
+    .plain-card {
+      background: rgba(255,255,255,0.96); color: #0f172a; border-radius: 10px; padding: 22px;
+      border: 1px solid rgba(226,232,240,0.86); box-shadow: 0 8px 22px rgba(15,23,42,0.12);
+      margin-bottom: 28px;
+    }
+    .plain-card-title {
+      font-family: 'Barlow Condensed', sans-serif; font-size: 20px; font-weight: 800;
+      color: var(--omega-blue-dark); text-transform: uppercase; letter-spacing: .6px; margin-bottom: 4px;
+    }
+    .plain-card-sub { color: #64748b; font-size: 13px; margin-bottom: 18px; }
+    .plain-card table thead tr { border-bottom: 1px solid #e2e8f0; }
+    .plain-card th { color: #64748b; }
+    .plain-card td:first-child { color: #0f172a; }
+    .plain-card td:not(:first-child) { color: #334155; }
+    .trend-pill { display: inline-block; border-radius: 999px; padding: 3px 9px; font-size: 11px; font-weight: 700; }
+    .trend-pill.up { background: #dcfce7; color: #166534; }
+    .trend-pill.down { background: #fee2e2; color: #991b1b; }
+    .trend-pill.flat { background: #fef3c7; color: #92400e; }
 
     /* Top pages table */
     .table-card { margin-bottom: 28px; }
@@ -221,7 +284,41 @@
     <!-- Data -->
     <div id="data-section" style="display:none">
       <!-- KPIs -->
-      <div class="kpi-grid">
+      <div class="exec-panel">
+        <div>
+          <div class="exec-eyebrow">Resumen ejecutivo</div>
+          <div class="exec-title" id="exec-title">Cargando lectura del sitio...</div>
+          <div class="exec-copy" id="exec-copy">Estamos preparando una lectura sencilla de visitas, interés y comportamiento para que sea fácil tomar decisiones.</div>
+        </div>
+        <div class="exec-status">
+          <div class="exec-status-label">Estado general</div>
+          <div class="exec-status-value" id="exec-status-value">Revisando</div>
+          <div class="exec-status-note" id="exec-status-note">Comparado con el mes anterior</div>
+        </div>
+      </div>
+
+      <div class="simple-kpi-grid">
+        <div class="simple-kpi" id="card-users"><div class="simple-kpi-label">Personas que llegaron</div><div class="simple-kpi-value" id="simple-users">—</div><div class="simple-kpi-change flat" id="simple-users-change">—</div><div class="simple-kpi-note">Usuarios activos del periodo seleccionado.</div></div>
+        <div class="simple-kpi" id="card-sessions"><div class="simple-kpi-label">Visitas al sitio</div><div class="simple-kpi-value" id="simple-sessions">—</div><div class="simple-kpi-change flat" id="simple-sessions-change">—</div><div class="simple-kpi-note">Cantidad de sesiones iniciadas por los visitantes.</div></div>
+        <div class="simple-kpi" id="card-engagement"><div class="simple-kpi-label">Interés real</div><div class="simple-kpi-value" id="simple-engagement">—</div><div class="simple-kpi-change flat" id="simple-engagement-change">—</div><div class="simple-kpi-note">Porcentaje de visitas con interacción útil.</div></div>
+        <div class="simple-kpi" id="card-conversions"><div class="simple-kpi-label">Acciones importantes</div><div class="simple-kpi-value" id="simple-conversions">—</div><div class="simple-kpi-change flat" id="simple-conversions-change">—</div><div class="simple-kpi-note">Conversiones registradas en Analytics.</div></div>
+      </div>
+
+      <div class="plain-card">
+        <div class="plain-card-title">Comparativo mensual</div>
+        <div class="plain-card-sub">Vista para dirección: permite ver si el sitio está creciendo, estable o bajando mes a mes.</div>
+        <div class="monthly-wrap"><canvas id="chart-monthly"></canvas></div>
+        <div style="overflow-x:auto;margin-top:18px">
+          <table>
+            <thead><tr>
+              <th>Mes</th><th>Personas</th><th>Visitas</th><th>Vistas</th><th>Interés</th><th>Conversiones</th><th>Tendencia</th>
+            </tr></thead>
+            <tbody id="table-monthly"><tr><td colspan="7" style="text-align:center;color:#64748b;padding:24px">Cargando...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="kpi-grid" style="display:none">
         <div class="kpi-card"><div class="kpi-label">Usuarios <span>👥</span></div><div class="kpi-value" id="kpi-users">—</div></div>
         <div class="kpi-card"><div class="kpi-label">Sesiones <span>📊</span></div><div class="kpi-value" id="kpi-sessions">—</div></div>
         <div class="kpi-card"><div class="kpi-label">Vistas <span>👁️</span></div><div class="kpi-value" id="kpi-views">—</div></div>
@@ -291,6 +388,7 @@
   let devicesChart = null;
   let sourcesChart = null;
   let nvrChart = null;
+  let monthlyChart = null;
 
   document.getElementById('pin-enter-input').addEventListener('keydown', e => { if (e.key === 'Enter') submitEnterPin(); });
 
@@ -344,7 +442,7 @@
     if (!authed) { setLoading(false); return; }
 
     try {
-      const [summary, traffic, topPages, devices, sources, geo, nvr] = await Promise.all([
+      const [summary, traffic, topPages, devices, sources, geo, nvr, monthly] = await Promise.all([
         fetch(`${BACKEND}/api/summary?days=${currentDays}`).then(r => { if (!r.ok) throw new Error(r.statusText); return r.json(); }),
         fetch(`${BACKEND}/api/traffic?days=${currentDays}`).then(r => { if (!r.ok) throw new Error(r.statusText); return r.json(); }),
         fetch(`${BACKEND}/api/top-pages?days=${currentDays}`).then(r => { if (!r.ok) throw new Error(r.statusText); return r.json(); }),
@@ -352,8 +450,9 @@
         fetch(`${BACKEND}/api/sources?days=${currentDays}`).then(r => { if (!r.ok) throw new Error(r.statusText); return r.json(); }),
         fetch(`${BACKEND}/api/geo?days=${currentDays}`).then(r => { if (!r.ok) throw new Error(r.statusText); return r.json(); }),
         fetch(`${BACKEND}/api/new-vs-returning?days=${currentDays}`).then(r => { if (!r.ok) throw new Error(r.statusText); return r.json(); }),
+        fetch(`${BACKEND}/api/monthly-comparison?months=6`).then(r => { if (!r.ok) throw new Error(r.statusText); return r.json(); }),
       ]);
-      renderData(summary, traffic, topPages, devices, sources, geo, nvr);
+      renderData(summary, traffic, topPages, devices, sources, geo, nvr, monthly);
     } catch (err) {
       document.getElementById('error-banner').textContent = 'Error al cargar datos: ' + err.message;
       document.getElementById('error-banner').style.display = 'block';
@@ -368,7 +467,7 @@
     document.getElementById('btn-refresh').disabled = on;
   }
 
-  function renderData(summary, traffic, topPages, devices, sources, geo, nvr) {
+  function renderData(summary, traffic, topPages, devices, sources, geo, nvr, monthly) {
     // KPIs
     document.getElementById('kpi-users').textContent       = (summary.users || 0).toLocaleString();
     document.getElementById('kpi-sessions').textContent    = (summary.sessions || 0).toLocaleString();
@@ -379,6 +478,7 @@
 
     // Traffic chart
     destroyCharts();
+    renderExecutiveSummary(summary, monthly);
     const trafficCtx = document.getElementById('chart-traffic').getContext('2d');
     trafficChart = new Chart(trafficCtx, {
       type: 'line',
@@ -482,11 +582,139 @@
     setLoading(false);
   }
 
+  function renderExecutiveSummary(summary, monthly) {
+    const last = monthly?.[monthly.length - 1] || null;
+    const previous = monthly?.[monthly.length - 2] || null;
+    const usersChange = pctChange(last?.users, previous?.users);
+    const sessionsChange = pctChange(last?.sessions, previous?.sessions);
+    const engagementChange = pctChange(last?.engagementRate, previous?.engagementRate);
+    const conversionsChange = pctChange(last?.conversions, previous?.conversions);
+
+    document.getElementById('simple-users').textContent = (summary.users || 0).toLocaleString();
+    document.getElementById('simple-sessions').textContent = (summary.sessions || 0).toLocaleString();
+    document.getElementById('simple-engagement').textContent = `${last?.engagementRate ?? 0}%`;
+    document.getElementById('simple-conversions').textContent = (summary.conversions || 0).toLocaleString();
+
+    applyKpiTrend('card-users', 'simple-users-change', usersChange, 'vs mes anterior');
+    applyKpiTrend('card-sessions', 'simple-sessions-change', sessionsChange, 'vs mes anterior');
+    applyKpiTrend('card-engagement', 'simple-engagement-change', engagementChange, 'vs mes anterior');
+    applyKpiTrend('card-conversions', 'simple-conversions-change', conversionsChange, 'vs mes anterior');
+
+    const positiveSignals = [usersChange, sessionsChange, engagementChange, conversionsChange].filter(v => v > 3).length;
+    const negativeSignals = [usersChange, sessionsChange, engagementChange, conversionsChange].filter(v => v < -3).length;
+    const status = positiveSignals >= 2 ? 'En crecimiento' : negativeSignals >= 2 ? 'Requiere atención' : 'Estable';
+    document.getElementById('exec-status-value').textContent = status;
+    document.getElementById('exec-status-note').textContent = last && previous ? `${last.month} comparado con ${previous.month}` : 'Comparado con el mes anterior';
+
+    const mainTrend = usersChange >= sessionsChange ? usersChange : sessionsChange;
+    const direction = mainTrend > 3 ? 'aumentó' : mainTrend < -3 ? 'bajó' : 'se mantuvo estable';
+    document.getElementById('exec-title').textContent = `El tráfico del sitio ${direction}`;
+    document.getElementById('exec-copy').textContent = buildInsightCopy(usersChange, sessionsChange, engagementChange, conversionsChange, topMetricName(usersChange, sessionsChange, engagementChange, conversionsChange));
+
+    renderMonthlyComparison(monthly || []);
+  }
+
+  function renderMonthlyComparison(monthly) {
+    const ctx = document.getElementById('chart-monthly').getContext('2d');
+    if (monthlyChart) { monthlyChart.destroy(); monthlyChart = null; }
+
+    monthlyChart = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: monthly.map(m => m.month),
+        datasets: [
+          { label: 'Personas', data: monthly.map(m => m.users), backgroundColor: '#1A3A8F', borderRadius: 6 },
+          { label: 'Visitas', data: monthly.map(m => m.sessions), backgroundColor: '#C41E3A', borderRadius: 6 }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { labels: { color: '#334155', font: { family: 'Barlow' } } } },
+        scales: {
+          x: { ticks: { color: '#64748b' }, grid: { display: false } },
+          y: { ticks: { color: '#64748b' }, grid: { color: 'rgba(100,116,139,0.15)' } }
+        }
+      }
+    });
+
+    const tbody = document.getElementById('table-monthly');
+    if (!monthly.length) {
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#64748b;padding:24px">Sin datos mensuales</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = monthly.map((m, i) => {
+      const previous = monthly[i - 1];
+      const change = previous ? pctChange(m.users, previous.users) : 0;
+      const trend = trendClass(change);
+      return `
+        <tr>
+          <td>${escHtml(m.month)}</td>
+          <td>${m.users.toLocaleString()}</td>
+          <td>${m.sessions.toLocaleString()}</td>
+          <td>${m.pageViews.toLocaleString()}</td>
+          <td>${m.engagementRate}%</td>
+          <td>${m.conversions.toLocaleString()}</td>
+          <td><span class="trend-pill ${trend}">${trendText(change)}</span></td>
+        </tr>`;
+    }).join('');
+  }
+
+  function pctChange(current = 0, previous = 0) {
+    if (!previous) return current ? 100 : 0;
+    return ((current - previous) / previous) * 100;
+  }
+
+  function trendClass(value) {
+    if (value > 3) return 'up';
+    if (value < -3) return 'down';
+    return 'flat';
+  }
+
+  function trendText(value) {
+    if (value > 3) return `Subió ${Math.abs(value).toFixed(1)}%`;
+    if (value < -3) return `Bajó ${Math.abs(value).toFixed(1)}%`;
+    return 'Estable';
+  }
+
+  function applyKpiTrend(cardId, changeId, value, suffix) {
+    const card = document.getElementById(cardId);
+    const change = document.getElementById(changeId);
+    const cls = trendClass(value);
+    card.classList.remove('good', 'warn', 'bad');
+    card.classList.add(cls === 'up' ? 'good' : cls === 'down' ? 'bad' : 'warn');
+    change.className = `simple-kpi-change ${cls}`;
+    change.textContent = `${trendText(value)} ${suffix}`;
+  }
+
+  function topMetricName(users, sessions, engagement, conversions) {
+    const items = [
+      { name: 'personas que llegaron al sitio', value: users },
+      { name: 'visitas al sitio', value: sessions },
+      { name: 'interacción con el sitio', value: engagement },
+      { name: 'acciones importantes', value: conversions }
+    ];
+    return items.sort((a, b) => b.value - a.value)[0].name;
+  }
+
+  function buildInsightCopy(users, sessions, engagement, conversions, topMetric) {
+    const positives = [users, sessions, engagement, conversions].filter(v => v > 3).length;
+    const negatives = [users, sessions, engagement, conversions].filter(v => v < -3).length;
+    if (positives >= 2) {
+      return `La señal principal es positiva: mejora especialmente en ${topMetric}. Esto indica más actividad útil en el sitio frente al mes anterior.`;
+    }
+    if (negatives >= 2) {
+      return `Hay señales que conviene revisar: varias métricas bajaron frente al mes anterior. Recomendado revisar canales de tráfico y páginas principales.`;
+    }
+    return `El comportamiento general está estable. Conviene mirar el comparativo mensual para detectar qué canal o página puede empujar el siguiente crecimiento.`;
+  }
+
   function destroyCharts() {
     if (trafficChart)  { trafficChart.destroy();  trafficChart  = null; }
     if (devicesChart)  { devicesChart.destroy();  devicesChart  = null; }
     if (sourcesChart)  { sourcesChart.destroy();  sourcesChart  = null; }
     if (nvrChart)      { nvrChart.destroy();      nvrChart      = null; }
+    if (monthlyChart)  { monthlyChart.destroy();  monthlyChart  = null; }
   }
 
   function changeRange(btn, days) {

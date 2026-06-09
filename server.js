@@ -171,6 +171,27 @@ const getDateRange = (days) => {
   return { startDate, endDate };
 };
 
+const toISODate = (date) => date.toISOString().split('T')[0];
+
+const getMonthlyRanges = (months = 6) => {
+  const today = new Date();
+  const ranges = [];
+
+  for (let i = months - 1; i >= 0; i--) {
+    const start = new Date(today.getFullYear(), today.getMonth() - i, 1);
+    const end = new Date(today.getFullYear(), today.getMonth() - i + 1, 0);
+    const cappedEnd = end > today ? today : end;
+
+    ranges.push({
+      label: start.toLocaleDateString('es-ES', { month: 'short', year: 'numeric' }),
+      startDate: toISODate(start),
+      endDate: toISODate(cappedEnd)
+    });
+  }
+
+  return ranges;
+};
+
 // Summary
 app.get('/api/summary', async (req, res) => {
   try {
@@ -407,10 +428,54 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// Monthly comparison
+app.get('/api/monthly-comparison', async (req, res) => {
+  try {
+    const months = Math.min(Math.max(parseInt(req.query.months || '6'), 2), 12);
+    const ranges = getMonthlyRanges(months);
+    const token = await getAccessToken();
+
+    const rows = await Promise.all(ranges.map(async (range) => {
+      const response = await axios.post(
+        `https://analyticsdata.googleapis.com/v1beta/properties/${propertyId}:runReport`,
+        {
+          dateRanges: [{ startDate: range.startDate, endDate: range.endDate }],
+          metrics: [
+            { name: 'activeUsers' },
+            { name: 'sessions' },
+            { name: 'screenPageViews' },
+            { name: 'engagementRate' },
+            { name: 'averageSessionDuration' },
+            { name: 'conversions' }
+          ]
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      const values = response.data.rows?.[0]?.metricValues || [];
+      return {
+        month: range.label,
+        startDate: range.startDate,
+        endDate: range.endDate,
+        users: parseInt(values[0]?.value) || 0,
+        sessions: parseInt(values[1]?.value) || 0,
+        pageViews: parseInt(values[2]?.value) || 0,
+        engagementRate: Number(((parseFloat(values[3]?.value) || 0) * 100).toFixed(2)),
+        avgSessionDurationSeconds: Math.round(parseFloat(values[4]?.value) || 0),
+        conversions: parseInt(values[5]?.value) || 0
+      };
+    }));
+
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get('/api', (req, res) => {
   res.json({
     message: 'Analytics Dashboard Backend',
-    endpoints: ['/auth/login', '/auth/status', '/api/health', '/api/summary', '/api/traffic', '/api/top-pages', '/api/devices', '/api/sources', '/api/geo', '/api/new-vs-returning']
+    endpoints: ['/auth/login', '/auth/status', '/api/health', '/api/summary', '/api/monthly-comparison', '/api/traffic', '/api/top-pages', '/api/devices', '/api/sources', '/api/geo', '/api/new-vs-returning']
   });
 });
 
