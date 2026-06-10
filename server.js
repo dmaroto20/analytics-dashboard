@@ -33,11 +33,45 @@ const GA_SCOPE = 'https://www.googleapis.com/auth/analytics.readonly';
 const SC_SCOPE = 'https://www.googleapis.com/auth/webmasters.readonly';
 const SEARCH_CONSOLE_SITE_URL = process.env.SEARCH_CONSOLE_SITE_URL;
 const ADMIN_PIN = process.env.ADMIN_PIN || '9999';
+const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
+const GITHUB_GIST_ID = process.env.GITHUB_GIST_ID;
 
 let storedTokens = GOOGLE_REFRESH_TOKEN ? { refresh_token: GOOGLE_REFRESH_TOKEN } : null;
 let serviceAccountToken = null;
 let scToken = null;
 let semrushData = [];
+
+// ── Gist persistence ──────────────────────────────────────────────────────────
+
+async function loadFromGist() {
+  if (!GITHUB_TOKEN || !GITHUB_GIST_ID) return;
+  try {
+    const r = await axios.get(`https://api.github.com/gists/${GITHUB_GIST_ID}`, {
+      headers: { Authorization: `Bearer ${GITHUB_TOKEN}`, Accept: 'application/vnd.github+json' }
+    });
+    const content = r.data.files['keywords.json']?.content;
+    if (content) {
+      const parsed = JSON.parse(content);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        semrushData = parsed;
+        console.log(`[gist] Cargados ${semrushData.length} keywords desde Gist`);
+      }
+    }
+  } catch (err) {
+    console.error('[gist] Error al cargar:', err.message);
+  }
+}
+
+async function saveToGist(data) {
+  if (!GITHUB_TOKEN || !GITHUB_GIST_ID) return;
+  await axios.patch(`https://api.github.com/gists/${GITHUB_GIST_ID}`, {
+    files: { 'keywords.json': { content: JSON.stringify(data) } }
+  }, {
+    headers: { Authorization: `Bearer ${GITHUB_TOKEN}`, Accept: 'application/vnd.github+json' }
+  });
+}
+
+loadFromGist();
 
 const hasServiceAccount = Boolean(SERVICE_ACCOUNT_EMAIL && SERVICE_ACCOUNT_PRIVATE_KEY);
 const hasRefreshToken = Boolean(GOOGLE_REFRESH_TOKEN && CLIENT_ID && CLIENT_SECRET);
@@ -736,13 +770,14 @@ app.get('/api/search-console/pages', async (req, res) => {
 
 // ── Semrush CSV upload (admin, PIN protected) ─────────────────────────────────
 
-app.post('/admin/upload', (req, res) => {
+app.post('/admin/upload', async (req, res) => {
   const { pin, csv, filename } = req.body;
   if (!pin || pin !== ADMIN_PIN) return res.status(403).json({ error: 'PIN incorrecto' });
   if (!csv) return res.status(400).json({ error: 'CSV requerido' });
   try {
     const parsed = parseSemrushCsv(csv, filename || '');
     semrushData = parsed;
+    await saveToGist(parsed);
     res.json({ success: true, rows: parsed.length, month: parsed[0]?.month || null });
   } catch (err) {
     res.status(400).json({ error: err.message });
