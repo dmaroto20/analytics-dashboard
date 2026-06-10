@@ -722,7 +722,7 @@
         <div class="section-heading">
           <div>
             <div class="section-title-xl">Competencia</div>
-            <div class="section-desc-xl">Análisis técnico SEO de los competidores principales. Se escanea título, H1, meta description, Schema, velocidad y más.</div>
+            <div class="section-desc-xl">Análisis digital de 21 competidores — Industrial y Comercial. Presencia digital curada + auditoría técnica SEO en vivo.</div>
           </div>
           <button class="period-btn" onclick="loadCompetitors(true)" id="btn-audit-refresh">🔄 Re-escanear</button>
         </div>
@@ -735,35 +735,55 @@
         <div id="comp-error" style="display:none;margin-bottom:20px;padding:14px 18px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:10px;color:#f87171;font-size:14px"></div>
 
         <div id="comp-content" style="display:none">
-          <div id="comp-meta" style="margin-bottom:20px;padding:14px 18px;background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.2);border-radius:10px;color:#93c5fd;font-size:13px"></div>
 
-          <!-- Score cards -->
-          <div id="comp-scorecards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;margin-bottom:28px"></div>
+          <!-- Resumen ejecutivo -->
+          <div id="comp-exec" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:14px;margin-bottom:24px"></div>
 
-          <!-- Detail table -->
-          <div class="card table-card">
-            <div class="card-title">Detalle SEO técnico</div>
+          <!-- Banda amenazas altas -->
+          <div id="comp-threats" style="margin-bottom:24px"></div>
+
+          <!-- Meta escaneo -->
+          <div id="comp-meta" style="margin-bottom:16px;padding:12px 16px;background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.2);border-radius:10px;color:#93c5fd;font-size:13px"></div>
+
+          <!-- Filtro por segmento -->
+          <div style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap">
+            <button id="filter-all" onclick="filterCompetitors('all')" style="padding:7px 14px;border-radius:7px;border:1px solid rgba(59,130,246,0.5);background:rgba(59,130,246,0.25);color:#93c5fd;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">Todos (21)</button>
+            <button id="filter-industrial" onclick="filterCompetitors('industrial')" style="padding:7px 14px;border-radius:7px;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.06);color:#94a3b8;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">Industrial (8)</button>
+            <button id="filter-comercial" onclick="filterCompetitors('comercial')" style="padding:7px 14px;border-radius:7px;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.06);color:#94a3b8;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">Comercial (13)</button>
+          </div>
+
+          <!-- Tabla presencia digital (curada) -->
+          <div class="card table-card" style="margin-bottom:20px">
+            <div class="card-title">Presencia Digital — Análisis Curado</div>
             <div style="overflow-x:auto">
               <table>
                 <thead><tr>
-                  <th>Sitio</th>
-                  <th>Score SEO</th>
-                  <th>HTTPS</th>
-                  <th>H1</th>
-                  <th>Meta desc.</th>
-                  <th>Schema</th>
-                  <th>H2s</th>
-                  <th>WhatsApp</th>
-                  <th>Velocidad</th>
+                  <th>Empresa</th><th>Seg.</th><th>Blog</th><th>E-Com</th>
+                  <th>WhatsApp</th><th>Redes</th><th>Schema</th><th>Analytics</th>
+                  <th>Score</th><th>Amenaza</th>
+                </tr></thead>
+                <tbody id="table-presence"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Tabla SEO técnico (en vivo) -->
+          <div class="card table-card" style="margin-bottom:20px">
+            <div class="card-title">SEO Técnico — Datos en Vivo</div>
+            <div style="overflow-x:auto">
+              <table>
+                <thead><tr>
+                  <th>Sitio</th><th>Score</th><th>HTTPS</th><th>H1</th>
+                  <th>Meta desc.</th><th>Schema</th><th>H2s</th><th>WA</th><th>Velocidad</th>
                 </tr></thead>
                 <tbody id="table-competitors"></tbody>
               </table>
             </div>
           </div>
 
-          <!-- H1 comparison -->
-          <div class="card table-card" style="margin-top:20px">
-            <div class="card-title">H1 y Título — qué dice cada competidor</div>
+          <!-- Tabla mensajes / contenido -->
+          <div class="card table-card">
+            <div class="card-title">H1 y Título — Mensajes por Competidor</div>
             <div style="overflow-x:auto">
               <table>
                 <thead><tr><th>Sitio</th><th>Título</th><th>H1</th><th>Meta description</th></tr></thead>
@@ -771,6 +791,7 @@
               </table>
             </div>
           </div>
+
         </div>
       </section>
 
@@ -1606,6 +1627,8 @@
 
   // ── Competencia ───────────────────────────────────────────────────────────
 
+  let competitorSites = [];
+  let compFilter = 'all';
   let competitorsLoaded = false;
 
   async function loadCompetitors(force) {
@@ -1618,17 +1641,16 @@
       const res = await fetch(`${BACKEND}/api/competitors${force ? '?refresh=1' : ''}`);
       const json = await res.json();
       if (!res.ok) throw new Error(json.error);
-      const sites = json.data || [];
+      competitorSites = json.data || [];
       const cached = json.fromCache;
       const when = cached ? new Date(json.cachedAt).toLocaleString('es-CR') : 'ahora';
       document.getElementById('comp-meta').textContent =
-        `${sites.length} sitios analizados · ${cached ? 'Desde caché: ' + when : 'Escaneado: ' + when} · Click en "Re-escanear" para actualizar`;
-      renderCompetitorScores(sites);
-      renderCompetitorTable(sites);
-      renderCompetitorContent(sites);
+        `${competitorSites.length} sitios analizados · ${cached ? 'Desde caché: ' + when : 'Escaneado: ' + when} · Click en "Re-escanear" para actualizar`;
+      renderCompExecSummary(competitorSites);
+      renderCompThreatBand(competitorSites);
+      filterCompetitors(compFilter);
       document.getElementById('comp-content').style.display = 'block';
-      competitorsLoaded = true;
-      if (force) competitorsLoaded = false;
+      competitorsLoaded = !force;
     } catch (err) {
       const el = document.getElementById('comp-error');
       el.textContent = 'Error al escanear: ' + err.message;
@@ -1639,52 +1661,130 @@
     }
   }
 
+  function filterCompetitors(filter) {
+    compFilter = filter;
+    ['all', 'industrial', 'comercial'].forEach(f => {
+      const btn = document.getElementById('filter-' + f);
+      if (!btn) return;
+      const active = f === filter;
+      btn.style.background   = active ? 'rgba(59,130,246,0.25)' : 'rgba(255,255,255,0.06)';
+      btn.style.borderColor  = active ? 'rgba(59,130,246,0.5)'  : 'rgba(255,255,255,0.12)';
+      btn.style.color        = active ? '#93c5fd' : '#94a3b8';
+    });
+    const filtered = filter === 'all'
+      ? competitorSites
+      : competitorSites.filter(s => s.isOwn || s.segment === filter);
+    renderPresenceTable(filtered);
+    renderTechTable(filtered);
+    renderContentTable(filtered);
+  }
+
   function scoreColor(score) {
     if (score >= 70) return { bg: 'rgba(16,185,129,0.12)', border: 'rgba(16,185,129,0.3)', text: '#34d399' };
     if (score >= 40) return { bg: 'rgba(234,179,8,0.12)',  border: 'rgba(234,179,8,0.3)',  text: '#fbbf24' };
     return { bg: 'rgba(239,68,68,0.12)', border: 'rgba(239,68,68,0.3)', text: '#f87171' };
   }
 
-  function renderCompetitorScores(sites) {
-    const sorted = [...sites].sort((a, b) => b.seoScore - a.seoScore);
-    document.getElementById('comp-scorecards').innerHTML = sorted.map(s => {
-      const c = scoreColor(s.seoScore);
-      const own = s.isOwn ? ' ⭐' : '';
-      const err = s.error ? '<div style="font-size:11px;color:#64748b;margin-top:4px">Sin acceso</div>' : '';
-      return `<div style="background:${c.bg};border:1px solid ${c.border};border-radius:12px;padding:18px;text-align:center">
-        <div style="font-size:11px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">${escHtml(s.name)}${own}</div>
-        <div style="font-size:32px;font-weight:800;color:${c.text}">${s.seoScore}</div>
-        <div style="font-size:11px;color:#64748b;margin-top:2px">/ 100</div>
-        ${err}
-      </div>`;
+  function renderCompExecSummary(sites) {
+    const comps      = sites.filter(s => !s.isOwn);
+    const industrial = comps.filter(s => s.segment === 'industrial');
+    const comercial  = comps.filter(s => s.segment === 'comercial');
+    const altas      = comps.filter(s => s.threat === 'Alta');
+    const omega      = sites.find(s => s.isOwn);
+    const cards = [
+      { label: '⭐ Score Omega',  value: (omega && omega.docScore) || 100, sub: 'Líder digital del sector',                                                                              color: '#34d399', red: false },
+      { label: 'Competidores',   value: comps.length,      sub: industrial.length + ' ind. · ' + comercial.length + ' com.',                                                            color: '#60a5fa', red: false },
+      { label: 'Industriales',   value: industrial.length, sub: industrial.filter(s=>s.region==='CR').length + ' CR · ' + industrial.filter(s=>s.region==='INTL').length + ' INTL',     color: '#818cf8', red: false },
+      { label: 'Comerciales',    value: comercial.length,  sub: comercial.filter(s=>s.region==='CR').length + ' CR · ' + comercial.filter(s=>s.region==='INTL').length + ' INTL',       color: '#38bdf8', red: false },
+      { label: 'Amenazas Altas', value: altas.length,      sub: altas.slice(0,3).map(s=>s.name).join(', ') + (altas.length > 3 ? '…' : ''),                                       color: '#f87171', red: true  }
+    ];
+    document.getElementById('comp-exec').innerHTML = cards.map(c => `
+      <div style="background:${c.red ? 'rgba(239,68,68,0.08)' : 'rgba(255,255,255,0.04)'};border:1px solid ${c.red ? 'rgba(239,68,68,0.25)' : 'rgba(255,255,255,0.08)'};border-radius:12px;padding:20px 14px;text-align:center">
+        <div style="font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">${c.label}</div>
+        <div style="font-size:34px;font-weight:800;color:${c.color};line-height:1">${c.value}</div>
+        <div style="font-size:11px;color:#64748b;margin-top:6px;line-height:1.4">${c.sub}</div>
+      </div>
+    `).join('');
+  }
+
+  function renderCompThreatBand(sites) {
+    const altas = sites.filter(s => !s.isOwn && s.threat === 'Alta');
+    if (!altas.length) { document.getElementById('comp-threats').innerHTML = ''; return; }
+    document.getElementById('comp-threats').innerHTML = `
+      <div style="background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.2);border-radius:12px;padding:16px 20px">
+        <div style="font-size:12px;font-weight:700;color:#f87171;text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px">&#9888;&#65039; Amenazas Altas — Monitoreo Prioritario</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px">
+          ${altas.map(s => `
+            <div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:8px;padding:14px">
+              <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
+                <div style="font-weight:700;color:#fca5a5;font-size:14px">${escHtml(s.name)}</div>
+                <div style="font-weight:800;color:#f87171;font-size:18px">${s.docScore}</div>
+              </div>
+              <div style="font-size:11px;color:#64748b;margin-bottom:8px">${s.domain} &middot; ${s.region} &middot; ${s.segment === 'industrial' ? 'Industrial' : 'Comercial'}</div>
+              <div style="font-size:12px;color:#94a3b8;line-height:1.5">${escHtml(s.analysis || '')}</div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `;
+  }
+
+  function renderPresenceTable(sites) {
+    const yn = v => v ? '<span style="color:#34d399">&#10003;</span>' : '<span style="color:#475569">&#10007;</span>';
+    const threatColors = { Alta: '#f87171', Media: '#fbbf24', Baja: '#94a3b8' };
+    const segLabel = s => {
+      if (s.isOwn) return '<span style="color:#34d399;font-size:11px">&#11088; Omega</span>';
+      return s.segment === 'industrial'
+        ? '<span style="color:#818cf8;font-size:11px">Ind.</span>'
+        : '<span style="color:#38bdf8;font-size:11px">Com.</span>';
+    };
+    document.getElementById('table-presence').innerHTML = sites.map(s => {
+      const sc = s.docScore || 0;
+      const scColor = sc >= 70 ? '#34d399' : sc >= 45 ? '#fbbf24' : '#f87171';
+      const threat = s.threat
+        ? `<span style="color:${threatColors[s.threat]};font-weight:700;font-size:12px">${s.threat}</span>`
+        : '<span style="color:#34d399;font-size:12px">–</span>';
+      const own = s.isOwn ? ' style="background:rgba(59,130,246,0.06)"' : '';
+      return `<tr${own}>
+        <td style="font-weight:600;white-space:nowrap">${escHtml(s.name)}<br><span style="font-size:11px;color:#64748b;font-weight:400">${s.domain}</span></td>
+        <td style="text-align:center">${segLabel(s)}<br><span style="font-size:10px;color:#475569">${s.region || ''}</span></td>
+        <td style="text-align:center">${yn(s.blog)}</td>
+        <td style="text-align:center">${yn(s.ecom)}</td>
+        <td style="text-align:center">${yn(s.whatsapp)}</td>
+        <td style="text-align:center">${yn(s.social)}</td>
+        <td style="text-align:center">${yn(s.hasSchema)}</td>
+        <td style="text-align:center">${yn(s.analyticsActive)}</td>
+        <td style="text-align:center"><span style="font-weight:800;color:${scColor}">${sc}</span></td>
+        <td style="text-align:center">${threat}</td>
+      </tr>`;
     }).join('');
   }
 
-  function renderCompetitorTable(sites) {
-    const bool = (v, yes='✅', no='❌') => v ? yes : no;
+  function renderTechTable(sites) {
+    const bool = v => v ? '&#10003;' : '&#10007;';
     const ms = v => v ? `${v}ms` : '–';
     document.getElementById('table-competitors').innerHTML = sites.map(s => {
-      const c = scoreColor(s.seoScore);
-      const own = s.isOwn ? ' ⭐' : '';
-      return `<tr${s.isOwn ? ' style="background:rgba(59,130,246,0.06)"' : ''}>
-        <td style="font-weight:600">${escHtml(s.name)}${own}<br><span style="font-size:11px;color:#64748b;font-weight:400">${s.domain}</span></td>
-        <td><span style="font-weight:700;color:${c.text}">${s.seoScore}</span></td>
-        <td>${bool(s.https)}</td>
-        <td>${s.h1 ? '✅' : '❌'}</td>
-        <td>${s.description ? '✅' : '❌'}</td>
-        <td>${bool(s.hasSchema)}</td>
-        <td>${s.h2Count}</td>
-        <td>${bool(s.hasWhatsApp)}</td>
+      const c = scoreColor(s.seoScore || 0);
+      const own = s.isOwn ? ' style="background:rgba(59,130,246,0.06)"' : '';
+      return `<tr${own}>
+        <td style="font-weight:600">${escHtml(s.name)}<br><span style="font-size:11px;color:#64748b;font-weight:400">${s.domain}</span></td>
+        <td><span style="font-weight:700;color:${c.text}">${s.seoScore || 0}</span></td>
+        <td style="color:${s.https?'#34d399':'#f87171'}">${bool(s.https)}</td>
+        <td style="color:${s.h1?'#34d399':'#f87171'}">${bool(s.h1)}</td>
+        <td style="color:${s.description?'#34d399':'#f87171'}">${bool(s.description)}</td>
+        <td style="color:${s.hasSchema?'#34d399':'#f87171'}">${bool(s.hasSchema)}</td>
+        <td>${s.h2Count || 0}</td>
+        <td style="color:${s.hasWhatsApp?'#34d399':'#f87171'}">${bool(s.hasWhatsApp)}</td>
         <td style="font-size:12px;color:#64748b">${ms(s.responseTime)}</td>
       </tr>`;
     }).join('');
   }
 
-  function renderCompetitorContent(sites) {
+  function renderContentTable(sites) {
     document.getElementById('table-comp-content').innerHTML = sites.map(s => {
-      const own = s.isOwn ? ' ⭐' : '';
-      return `<tr${s.isOwn ? ' style="background:rgba(59,130,246,0.06)"' : ''}>
-        <td style="font-weight:600;white-space:nowrap">${escHtml(s.name)}${own}</td>
+      const own = s.isOwn ? ' style="background:rgba(59,130,246,0.06)"' : '';
+      return `<tr${own}>
+        <td style="font-weight:600;white-space:nowrap">${escHtml(s.name)}</td>
         <td style="font-size:12px;max-width:200px">${s.title ? escHtml(s.title) : '<span style="color:#64748b">–</span>'}</td>
         <td style="font-size:12px;max-width:200px">${s.h1 ? escHtml(s.h1) : '<span style="color:#64748b">–</span>'}</td>
         <td style="font-size:12px;max-width:240px;color:#94a3b8">${s.description ? escHtml(s.description) : '<span style="color:#64748b">–</span>'}</td>

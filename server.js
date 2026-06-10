@@ -845,28 +845,160 @@ app.get('/api/decision-matrix', async (req, res) => {
 // ── Competitor audit ──────────────────────────────────────────────────────────
 
 const COMPETITORS = [
-  { name: 'Refrigeración Omega', domain: 'refrigeracion-omega.com', isOwn: true },
-  { name: 'RSF', domain: 'rsfcr.com' },
-  { name: 'RCR Refrigeración', domain: 'proyectosrefrigeracion.com' },
-  { name: 'EcoClima CR', domain: 'ecoclimacr.com' },
-  { name: 'Aislamart', domain: 'aislamart.co.cr' },
-  { name: 'Panel Sandwich Group', domain: 'panelsandwich.cr' },
-  { name: 'Equinox CR', domain: 'equinoxcr.com' },
-  { name: 'Froztec', domain: 'froztec.com' },
-  { name: 'Tips CR', domain: 'tipscr.com' },
-  { name: 'Jopco', domain: 'jopco.net' },
-  { name: 'Fulzer', domain: 'fulzer.com' },
-  { name: 'Equipos Nieto', domain: 'equiposnieto.com' },
-  { name: 'Beirute', domain: 'beirute.com' },
-  { name: 'Carbone Store', domain: 'carbonestore.cr' },
-  { name: 'Refrimundo', domain: 'refrimundo.com' },
-  { name: 'Leaho', domain: 'leaho.com' },
-  { name: 'Equipos AB', domain: 'equiposab.com' },
-  { name: 'Electrofrio CR', domain: 'electrofriocr.com' },
-  { name: 'Frio Aire', domain: 'frioaire.com' },
-  { name: 'Restaurant Supply', domain: 'restaurantsupply.com' },
-  { name: 'Webstaurant Store', domain: 'webstaurantstore.com' },
-  { name: 'Cuesa Construcciones', domain: 'cuesacr.com' }
+  {
+    name: 'Refrigeración Omega', domain: 'refrigeracion-omega.com', isOwn: true,
+    segment: 'own', region: 'CR', threat: null, docScore: 100,
+    blog: true, ecom: true, whatsapp: true, social: true, analyticsActive: true,
+    enfoque: 'Líder en refrigeración industrial y comercial en Costa Rica. 8 sucursales, fabricación propia. Catálogo completo: refrigeración, cocción, acero inoxidable, aires acondicionados y proyectos llave en mano.',
+    analysis: 'Referencia del mercado digital. Score máximo 100/100. Único con e-commerce activo y cobertura nacional completa.'
+  },
+  {
+    name: 'RSF', domain: 'rsfcr.com',
+    segment: 'industrial', region: 'CR', threat: 'Alta', docScore: 45,
+    blog: false, ecom: false, whatsapp: true, social: true, analyticsActive: true,
+    enfoque: 'Refrigeración industrial y comercial. Proyectos integrales HVAC. Empresa con presencia regional y sólida reputación técnica.',
+    analysis: 'Mayor competidor directo en proyectos industriales. Equipo de ingenieros especializados. Sin blog pero con Analytics. Debilidad: nula presencia en contenido SEO.'
+  },
+  {
+    name: 'RCR Refrigeración', domain: 'proyectosrefrigeracion.com',
+    segment: 'industrial', region: 'CR', threat: 'Alta', docScore: 40,
+    blog: false, ecom: false, whatsapp: false, social: true, analyticsActive: true,
+    enfoque: 'Cuartos fríos, construcción frigorífica, supermercados, CEDIS y agroindustria. Opera en México, Costa Rica y Guatemala.',
+    analysis: 'Competidor regional fuerte. Proyectos llave en mano para grandes superficies. Sin WhatsApp visible ni estrategia de contenido.'
+  },
+  {
+    name: 'EcoClima CR', domain: 'ecoclimacr.com',
+    segment: 'industrial', region: 'CR', threat: 'Media', docScore: 70,
+    blog: true, ecom: false, whatsapp: true, social: true, analyticsActive: true,
+    enfoque: 'Cuartos fríos, refrigeración industrial, HVAC y soluciones con refrigerantes ecológicos (CO2, R-290).',
+    analysis: 'Competidor digital más desarrollado del segmento industrial. Blog activo con artículos técnicos de buena calidad SEO. Puede ganar terreno orgánico en búsquedas de cuartos fríos.'
+  },
+  {
+    name: 'Aislamart', domain: 'aislamart.co.cr',
+    segment: 'industrial', region: 'CR', threat: 'Media', docScore: 70,
+    blog: true, ecom: false, whatsapp: true, social: true, analyticsActive: true,
+    enfoque: 'Distribuidor exclusivo paneles Globe (Italia). Stock inmediato en Heredia. Paneles sandwich para cuartos fríos, naves industriales y granjas.',
+    analysis: 'Bien posicionado en búsquedas de paneles sandwich. Blog activo con contenido técnico. Amenaza directa en el segmento de cerramientos y paneles frigoríficos.'
+  },
+  {
+    name: 'Panel Sandwich Group', domain: 'panelsandwich.cr',
+    segment: 'industrial', region: 'CR', threat: 'Baja', docScore: 65,
+    blog: true, ecom: false, whatsapp: true, social: false, analyticsActive: true,
+    enfoque: 'Paneles sandwich frigoríficos para cuartos fríos, cámaras de congelación y cubiertas industriales.',
+    analysis: 'Muy enfocado en nicho específico. Blog con artículos técnicos sobre paneles. Sin redes sociales activas. No compite en el espectro completo de Omega.'
+  },
+  {
+    name: 'Equinox CR', domain: 'equinoxcr.com',
+    segment: 'industrial', region: 'CR', threat: 'Media', docScore: 35,
+    blog: false, ecom: false, whatsapp: true, social: true, analyticsActive: false,
+    enfoque: 'Proyectos de construcción en acero inoxidable para industria alimentaria y cocinas profesionales.',
+    analysis: 'Competidor directo en el nicho de proyectos inox. Presencia digital muy básica — oportunidad para Omega de dominar ese segmento orgánicamente con contenido.'
+  },
+  {
+    name: 'Cuesa Construcciones', domain: 'cuesacr.com',
+    segment: 'industrial', region: 'CR', threat: 'Media', docScore: 35,
+    blog: false, ecom: false, whatsapp: true, social: true, analyticsActive: false,
+    enfoque: 'Construcción y diseño industrial. Proyectos de infraestructura para el sector frío.',
+    analysis: 'Presencia digital mínima. Compite más por relaciones comerciales que por digital. Sin estrategia SEO visible.'
+  },
+  {
+    name: 'Froztec', domain: 'froztec.com',
+    segment: 'industrial', region: 'INTL', threat: 'Baja', docScore: 65,
+    blog: true, ecom: false, whatsapp: false, social: true, analyticsActive: true,
+    enfoque: 'Cuartos fríos industriales y refrigeración industrial a gran escala. Referente internacional.',
+    analysis: 'No es competidor directo en CR pero marca el estándar de la industria. Útil como referencia para benchmarking de contenido técnico.'
+  },
+  {
+    name: 'Tips CR', domain: 'tipscr.com',
+    segment: 'comercial', region: 'CR', threat: 'Alta', docScore: 80,
+    blog: false, ecom: true, whatsapp: true, social: true, analyticsActive: true,
+    enfoque: 'Más de 6,000 productos HORECA online. Marca propia U-Star. Atiende hoteles, restaurantes, cafeterías y hogares.',
+    analysis: 'Principal amenaza comercial. Tienda online robusta con catálogo masivo. Distribuidores de Torrey y U-Star. Fuerte en cocinas profesionales.'
+  },
+  {
+    name: 'Beirute', domain: 'beirute.com',
+    segment: 'comercial', region: 'CR', threat: 'Alta', docScore: 80,
+    blog: false, ecom: true, whatsapp: true, social: true, analyticsActive: true,
+    enfoque: 'Retailer establecido. Electrónica, hogar, refrigeración y electrodomésticos. Catálogo amplio con e-commerce activo.',
+    analysis: 'Competidor fuerte por volumen y reconocimiento de marca. Compite en refrigeración de consumo masivo. E-commerce es amenaza directa para ventas en línea.'
+  },
+  {
+    name: 'Jopco', domain: 'jopco.net',
+    segment: 'comercial', region: 'CR', threat: 'Alta', docScore: 60,
+    blog: true, ecom: false, whatsapp: true, social: true, analyticsActive: true,
+    enfoque: 'Refrigeración y carnicería para hoteles y restaurantes. Marcas Atosa, Imbera y Fagor. Ubicado en Escazú.',
+    analysis: 'Blog activo con artículos de productos — buen esfuerzo SEO sistemático. Especializado en HORECA. Competidor directo en equipos de refrigeración comercial.'
+  },
+  {
+    name: 'Fulzer', domain: 'fulzer.com',
+    segment: 'comercial', region: 'CR', threat: 'Media', docScore: 45,
+    blog: false, ecom: false, whatsapp: true, social: true, analyticsActive: true,
+    enfoque: 'Ex Keith & Ramírez. Fabricante de mobiliario inox e importador de refrigeración True. Enfocado en hotelería y cadenas de comida rápida.',
+    analysis: 'Posicionado en segmento premium con marca True. Debilidad: falta de contenido digital. Compite con Omega en acero inoxidable y refrigeración para grandes cadenas.'
+  },
+  {
+    name: 'Carbone Store', domain: 'carbonestore.cr',
+    segment: 'comercial', region: 'CR', threat: 'Media', docScore: 65,
+    blog: false, ecom: true, whatsapp: true, social: true, analyticsActive: true,
+    enfoque: 'Equipos comerciales con tienda online activa. Creciendo en el segmento de venta digital de equipos.',
+    analysis: 'E-commerce activo en crecimiento. A vigilar por su dinámica de ventas online. Buena presencia en redes sociales.'
+  },
+  {
+    name: 'Leaho', domain: 'leaho.com',
+    segment: 'comercial', region: 'CR', threat: 'Media', docScore: 65,
+    blog: false, ecom: true, whatsapp: true, social: true, analyticsActive: true,
+    enfoque: 'Equipos y accesorios para restaurantes. Tienda online activa para el segmento HORECA.',
+    analysis: 'Tienda online con buena experiencia de usuario. Competidor en el segmento de equipos para restaurantes.'
+  },
+  {
+    name: 'Electrofrio CR', domain: 'electrofriocr.com',
+    segment: 'comercial', region: 'CR', threat: 'Media', docScore: 45,
+    blog: false, ecom: false, whatsapp: true, social: true, analyticsActive: true,
+    enfoque: 'Distribuidor Fogel. Más de 30 años en el mercado. Equipos para supermercados, restaurantes y panaderías. Santo Domingo de Heredia.',
+    analysis: 'Empresa con larga trayectoria y reputación establecida. Sin estrategia digital activa. Su fuerza es la relación comercial tradicional.'
+  },
+  {
+    name: 'Equipos Nieto', domain: 'equiposnieto.com',
+    segment: 'comercial', region: 'CR', threat: 'Baja', docScore: 35,
+    blog: false, ecom: false, whatsapp: true, social: true, analyticsActive: false,
+    enfoque: 'Equipos de cocina y refrigeración comercial para el mercado costarricense.',
+    analysis: 'Presencia digital básica. Sin estrategia SEO visible. Competidor menor en el segmento.'
+  },
+  {
+    name: 'Refrimundo', domain: 'refrimundo.com',
+    segment: 'comercial', region: 'CR', threat: 'Baja', docScore: 35,
+    blog: false, ecom: false, whatsapp: true, social: true, analyticsActive: false,
+    enfoque: 'Refrigeración y servicio técnico en Costa Rica.',
+    analysis: 'Enfocado más en servicio técnico que en venta de equipos nuevos. Presencia digital limitada.'
+  },
+  {
+    name: 'Equipos AB', domain: 'equiposab.com',
+    segment: 'comercial', region: 'CR', threat: 'Baja', docScore: 25,
+    blog: false, ecom: false, whatsapp: true, social: false, analyticsActive: false,
+    enfoque: 'Equipos gastronómicos y refrigeración comercial.',
+    analysis: 'Presencia digital muy básica. Sin redes sociales activas ni estrategia SEO. Competidor menor.'
+  },
+  {
+    name: 'Frio Aire', domain: 'frioaire.com',
+    segment: 'comercial', region: 'INTL', threat: 'Baja', docScore: 65,
+    blog: true, ecom: false, whatsapp: false, social: true, analyticsActive: true,
+    enfoque: 'Refrigeración comercial regional. Cobertura en varios países de Latinoamérica.',
+    analysis: 'Competidor internacional con buen sitio web. No opera directamente en CR pero puede influir en búsquedas de marca regional.'
+  },
+  {
+    name: 'Restaurant Supply', domain: 'restaurantsupply.com',
+    segment: 'comercial', region: 'INTL', threat: 'Baja', docScore: 90,
+    blog: true, ecom: true, whatsapp: false, social: true, analyticsActive: true,
+    enfoque: 'E-commerce masivo de equipos para restaurantes. Referente del mercado en USA.',
+    analysis: 'No es competidor directo en CR pero marca el estándar global de e-commerce del sector. Referencia para benchmarking de tienda online.'
+  },
+  {
+    name: 'Webstaurant Store', domain: 'webstaurantstore.com',
+    segment: 'comercial', region: 'INTL', threat: 'Baja', docScore: 95,
+    blog: true, ecom: true, whatsapp: false, social: true, analyticsActive: true,
+    enfoque: 'Líder mundial en venta online de equipos para restaurantes. Millones de productos. Referente global del sector.',
+    analysis: 'El mayor referente digital de la industria a nivel global. No compite en CR pero es el benchmark de lo que un e-commerce del sector puede alcanzar.'
+  }
 ];
 
 let competitorCache = { data: null, fetchedAt: null };
