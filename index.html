@@ -440,6 +440,11 @@
             <div class="section-title-xl">Comparativo mensual</div>
             <div class="section-desc-xl">Compara solo meses cerrados. El mes actual aparece separado porque aún está en curso.</div>
           </div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <button class="period-btn comp-month-btn" onclick="selectCompMonths(3,this)">3 meses</button>
+            <button class="period-btn comp-month-btn active" onclick="selectCompMonths(6,this)">6 meses</button>
+            <button class="period-btn comp-month-btn" onclick="selectCompMonths(12,this)">12 meses</button>
+          </div>
         </div>
 
         <div class="plain-card">
@@ -571,6 +576,11 @@
           <div>
             <div class="section-title-xl">SEO / Search Console</div>
             <div class="section-desc-xl">Cómo aparece el sitio en Google antes de que el usuario haga clic. Datos de Google Search Console.</div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <button class="period-btn seo-day-btn" onclick="selectSeoDays(7,this)">7 días</button>
+            <button class="period-btn seo-day-btn active" onclick="selectSeoDays(28,this)">28 días</button>
+            <button class="period-btn seo-day-btn" onclick="selectSeoDays(90,this)">90 días</button>
           </div>
         </div>
 
@@ -740,8 +750,11 @@
     document.querySelectorAll('.nav-tab').forEach(tab => tab.classList.remove('active'));
     btn.classList.add('active');
     setTimeout(() => [trafficChart, devicesChart, sourcesChart, nvrChart, monthlyChart].forEach(chart => chart?.resize()), 50);
+    const hidePeriod = ['comparison', 'seo', 'keywords'];
+    document.querySelector('.period-panel').style.display = hidePeriod.includes(name) ? 'none' : '';
     if (name === 'seo') loadSEO();
     if (name === 'keywords') loadKeywords();
+    if (name === 'comparison') loadComparison();
   }
 
   function selectPeriod(type, btn) {
@@ -875,7 +888,14 @@
   }
 
   function apiFetch(path) {
-    return fetch(`${BACKEND}${path}`).then(r => { if (!r.ok) throw new Error(r.statusText); return r.json(); });
+    return fetch(`${BACKEND}${path}`).then(async r => {
+      if (!r.ok) {
+        let msg = `HTTP ${r.status}`;
+        try { const j = await r.json(); msg = j.error || j.message || msg; } catch {}
+        throw new Error(msg);
+      }
+      return r.json();
+    });
   }
 
   function queryForRange(range) {
@@ -1055,8 +1075,6 @@
     document.getElementById('exec-title').textContent = `El tráfico del sitio ${direction}`;
     document.getElementById('exec-copy').textContent = buildInsightCopy(usersChange, sessionsChange, engagementChange, durationChange, conversionsChange, topMetricName(usersChange, sessionsChange, engagementChange, durationChange, conversionsChange));
 
-    renderCurrentMonth(currentMonth);
-    renderMonthlyComparison(monthly || []);
   }
 
   function renderChannelQuality(channelQuality) {
@@ -1204,25 +1222,64 @@
     return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   }
 
+  // ── Comparativo mensual ───────────────────────────────────────────────────
+
+  let compMonths = 6;
+
+  function selectCompMonths(n, btn) {
+    compMonths = n;
+    document.querySelectorAll('.comp-month-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    loadComparison();
+  }
+
+  async function loadComparison() {
+    document.getElementById('table-monthly').innerHTML = '<tr><td colspan="7" style="text-align:center;color:#64748b;padding:24px">Cargando...</td></tr>';
+    if (monthlyChart) { monthlyChart.destroy(); monthlyChart = null; }
+    try {
+      const data = await fetch(`${BACKEND}/api/monthly-comparison?months=${compMonths}`).then(async r => {
+        if (!r.ok) { let m = `HTTP ${r.status}`; try { const j = await r.json(); m = j.error || m; } catch {} throw new Error(m); }
+        return r.json();
+      });
+      const months = Array.isArray(data) ? data : (data?.closedMonths || []);
+      const current = Array.isArray(data) ? null : data?.currentMonth;
+      renderCurrentMonth(current);
+      renderMonthlyComparison(months);
+    } catch (err) {
+      document.getElementById('table-monthly').innerHTML = `<tr><td colspan="7" style="text-align:center;color:#f87171;padding:24px">Error: ${err.message}</td></tr>`;
+    }
+  }
+
   // ── SEO / Search Console ──────────────────────────────────────────────────
 
-  let seoLoaded = false;
+  let seoDays = 28;
+
+  function seoDateRange() {
+    const end = new Date(); end.setDate(end.getDate() - 3);
+    const start = new Date(end); start.setDate(start.getDate() - seoDays);
+    const fmt = d => d.toISOString().split('T')[0];
+    return `startDate=${fmt(start)}&endDate=${fmt(end)}`;
+  }
+
+  function selectSeoDays(n, btn) {
+    seoDays = n;
+    document.querySelectorAll('.seo-day-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    loadSEO();
+  }
 
   async function loadSEO() {
-    if (seoLoaded) return;
     document.getElementById('seo-loading').style.display = 'block';
     document.getElementById('seo-error').style.display = 'none';
     document.getElementById('seo-content').style.display = 'none';
-    const rangeQuery = queryForRange(selectedPeriod);
     try {
       const [queries, pages] = await Promise.all([
-        apiFetch(`/api/search-console/queries?${rangeQuery}`),
-        apiFetch(`/api/search-console/pages?${rangeQuery}`)
+        apiFetch(`/api/search-console/queries?${seoDateRange()}`),
+        apiFetch(`/api/search-console/pages?${seoDateRange()}`)
       ]);
       renderSCQueries(queries);
       renderSCPages(pages);
       document.getElementById('seo-content').style.display = 'block';
-      seoLoaded = true;
     } catch (err) {
       const el = document.getElementById('seo-error');
       el.textContent = 'Error al cargar Search Console: ' + err.message;

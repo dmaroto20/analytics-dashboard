@@ -148,10 +148,9 @@
       <button class="btn btn-primary" id="upload-btn" onclick="uploadCSV()">Subir archivo</button>
       <div id="upload-result" class="result"></div>
 
-      <div class="notice">
-        ⚠️ <strong>Importante:</strong> los datos se guardan en memoria del servidor.
-        Si Render reinicia el servicio (esto puede pasar espontáneamente o al hacer un nuevo deploy),
-        deberás subir el CSV nuevamente.
+      <div class="notice" style="background:#f0fdf4;border-color:#86efac;color:#166534">
+        ✅ <strong>Persistencia activada:</strong> los datos se guardan automáticamente en GitHub Gist.
+        Si Render reinicia, los keywords se restauran solos al arrancar el servidor.
       </div>
     </section>
 
