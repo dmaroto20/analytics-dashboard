@@ -290,9 +290,11 @@ function parseSemrushCsv(csv, filename) {
   if (!lines.length) throw new Error('CSV vacío');
 
   // Semrush exports include a metadata block before the real header — skip it
-  const headerLineIdx = lines.findIndex(l => /^keyword[,;]/i.test(l));
+  // Handle BOM (﻿), quoted fields ("Keyword"), and both , and ; separators
+  const headerLineIdx = lines.findIndex(l => /^[﻿"']?keyword["']?[,;\t]/i.test(l));
   if (headerLineIdx === -1) {
-    throw new Error('No se encontró la fila de encabezados. Asegúrate de exportar desde Semrush → Position Tracking → Export.');
+    console.error('[csv] Primeras 5 líneas:', lines.slice(0, 5).map(l => JSON.stringify(l)));
+    throw new Error('No se encontró la fila de encabezados. Primeras líneas: ' + lines.slice(0, 3).map(l => l.substring(0, 60)).join(' | '));
   }
 
   const sep = lines[headerLineIdx].includes(';') ? ';' : ',';
