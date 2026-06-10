@@ -352,6 +352,7 @@
     <button class="nav-tab" type="button" onclick="showTab('seo', this)">SEO</button>
     <button class="nav-tab" type="button" onclick="showTab('keywords', this)">Keywords</button>
     <button class="nav-tab" type="button" onclick="showTab('matrix', this)">Matriz</button>
+    <button class="nav-tab" type="button" onclick="showTab('competitors', this)">Competencia</button>
   </div>
 
   <div class="main">
@@ -716,6 +717,63 @@
         </div>
       </section>
 
+      <!-- ── Competencia ── -->
+      <section class="tab-panel" id="tab-competitors">
+        <div class="section-heading">
+          <div>
+            <div class="section-title-xl">Competencia</div>
+            <div class="section-desc-xl">Análisis técnico SEO de los competidores principales. Se escanea título, H1, meta description, Schema, velocidad y más.</div>
+          </div>
+          <button class="period-btn" onclick="loadCompetitors(true)" id="btn-audit-refresh">🔄 Re-escanear</button>
+        </div>
+
+        <div id="comp-loading" style="display:none;text-align:center;padding:60px 20px;color:#94a3b8">
+          <div style="font-size:36px;margin-bottom:16px">🔍</div>
+          <div style="font-size:15px;font-weight:600;margin-bottom:8px">Escaneando competidores…</div>
+          <div style="font-size:13px">Esto puede tomar 30-60 segundos la primera vez.</div>
+        </div>
+        <div id="comp-error" style="display:none;margin-bottom:20px;padding:14px 18px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:10px;color:#f87171;font-size:14px"></div>
+
+        <div id="comp-content" style="display:none">
+          <div id="comp-meta" style="margin-bottom:20px;padding:14px 18px;background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.2);border-radius:10px;color:#93c5fd;font-size:13px"></div>
+
+          <!-- Score cards -->
+          <div id="comp-scorecards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;margin-bottom:28px"></div>
+
+          <!-- Detail table -->
+          <div class="card table-card">
+            <div class="card-title">Detalle SEO técnico</div>
+            <div style="overflow-x:auto">
+              <table>
+                <thead><tr>
+                  <th>Sitio</th>
+                  <th>Score SEO</th>
+                  <th>HTTPS</th>
+                  <th>H1</th>
+                  <th>Meta desc.</th>
+                  <th>Schema</th>
+                  <th>H2s</th>
+                  <th>WhatsApp</th>
+                  <th>Velocidad</th>
+                </tr></thead>
+                <tbody id="table-competitors"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- H1 comparison -->
+          <div class="card table-card" style="margin-top:20px">
+            <div class="card-title">H1 y Título — qué dice cada competidor</div>
+            <div style="overflow-x:auto">
+              <table>
+                <thead><tr><th>Sitio</th><th>Título</th><th>H1</th><th>Meta description</th></tr></thead>
+                <tbody id="table-comp-content"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
     </div>
   </div>
 </div>
@@ -798,12 +856,13 @@
     document.querySelectorAll('.nav-tab').forEach(tab => tab.classList.remove('active'));
     btn.classList.add('active');
     setTimeout(() => [trafficChart, devicesChart, sourcesChart, nvrChart, monthlyChart].forEach(chart => chart?.resize()), 50);
-    const hidePeriod = ['comparison', 'seo', 'keywords'];
+    const hidePeriod = ['comparison', 'seo', 'keywords', 'matrix', 'competitors'];
     document.querySelector('.period-panel').style.display = hidePeriod.includes(name) ? 'none' : '';
     if (name === 'seo') loadSEO();
     if (name === 'keywords') loadKeywords();
     if (name === 'comparison') loadComparison();
     if (name === 'matrix') loadMatrix();
+    if (name === 'competitors') loadCompetitors(false);
   }
 
   function selectPeriod(type, btn) {
@@ -1541,6 +1600,94 @@
         <td>${r.sc ? r.sc.impressions.toLocaleString() : '–'}</td>
         <td>${r.sc ? r.sc.ctr + '%' : '–'}</td>
         <td>${badges}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  // ── Competencia ───────────────────────────────────────────────────────────
+
+  let competitorsLoaded = false;
+
+  async function loadCompetitors(force) {
+    if (competitorsLoaded && !force) return;
+    document.getElementById('comp-loading').style.display = 'block';
+    document.getElementById('comp-error').style.display = 'none';
+    document.getElementById('comp-content').style.display = 'none';
+    document.getElementById('btn-audit-refresh').disabled = true;
+    try {
+      const res = await fetch(`${BACKEND}/api/competitors${force ? '?refresh=1' : ''}`);
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error);
+      const sites = json.data || [];
+      const cached = json.fromCache;
+      const when = cached ? new Date(json.cachedAt).toLocaleString('es-CR') : 'ahora';
+      document.getElementById('comp-meta').textContent =
+        `${sites.length} sitios analizados · ${cached ? 'Desde caché: ' + when : 'Escaneado: ' + when} · Click en "Re-escanear" para actualizar`;
+      renderCompetitorScores(sites);
+      renderCompetitorTable(sites);
+      renderCompetitorContent(sites);
+      document.getElementById('comp-content').style.display = 'block';
+      competitorsLoaded = true;
+      if (force) competitorsLoaded = false;
+    } catch (err) {
+      const el = document.getElementById('comp-error');
+      el.textContent = 'Error al escanear: ' + err.message;
+      el.style.display = 'block';
+    } finally {
+      document.getElementById('comp-loading').style.display = 'none';
+      document.getElementById('btn-audit-refresh').disabled = false;
+    }
+  }
+
+  function scoreColor(score) {
+    if (score >= 70) return { bg: 'rgba(16,185,129,0.12)', border: 'rgba(16,185,129,0.3)', text: '#34d399' };
+    if (score >= 40) return { bg: 'rgba(234,179,8,0.12)',  border: 'rgba(234,179,8,0.3)',  text: '#fbbf24' };
+    return { bg: 'rgba(239,68,68,0.12)', border: 'rgba(239,68,68,0.3)', text: '#f87171' };
+  }
+
+  function renderCompetitorScores(sites) {
+    const sorted = [...sites].sort((a, b) => b.seoScore - a.seoScore);
+    document.getElementById('comp-scorecards').innerHTML = sorted.map(s => {
+      const c = scoreColor(s.seoScore);
+      const own = s.isOwn ? ' ⭐' : '';
+      const err = s.error ? '<div style="font-size:11px;color:#64748b;margin-top:4px">Sin acceso</div>' : '';
+      return `<div style="background:${c.bg};border:1px solid ${c.border};border-radius:12px;padding:18px;text-align:center">
+        <div style="font-size:11px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">${escHtml(s.name)}${own}</div>
+        <div style="font-size:32px;font-weight:800;color:${c.text}">${s.seoScore}</div>
+        <div style="font-size:11px;color:#64748b;margin-top:2px">/ 100</div>
+        ${err}
+      </div>`;
+    }).join('');
+  }
+
+  function renderCompetitorTable(sites) {
+    const bool = (v, yes='✅', no='❌') => v ? yes : no;
+    const ms = v => v ? `${v}ms` : '–';
+    document.getElementById('table-competitors').innerHTML = sites.map(s => {
+      const c = scoreColor(s.seoScore);
+      const own = s.isOwn ? ' ⭐' : '';
+      return `<tr${s.isOwn ? ' style="background:rgba(59,130,246,0.06)"' : ''}>
+        <td style="font-weight:600">${escHtml(s.name)}${own}<br><span style="font-size:11px;color:#64748b;font-weight:400">${s.domain}</span></td>
+        <td><span style="font-weight:700;color:${c.text}">${s.seoScore}</span></td>
+        <td>${bool(s.https)}</td>
+        <td>${s.h1 ? '✅' : '❌'}</td>
+        <td>${s.description ? '✅' : '❌'}</td>
+        <td>${bool(s.hasSchema)}</td>
+        <td>${s.h2Count}</td>
+        <td>${bool(s.hasWhatsApp)}</td>
+        <td style="font-size:12px;color:#64748b">${ms(s.responseTime)}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  function renderCompetitorContent(sites) {
+    document.getElementById('table-comp-content').innerHTML = sites.map(s => {
+      const own = s.isOwn ? ' ⭐' : '';
+      return `<tr${s.isOwn ? ' style="background:rgba(59,130,246,0.06)"' : ''}>
+        <td style="font-weight:600;white-space:nowrap">${escHtml(s.name)}${own}</td>
+        <td style="font-size:12px;max-width:200px">${s.title ? escHtml(s.title) : '<span style="color:#64748b">–</span>'}</td>
+        <td style="font-size:12px;max-width:200px">${s.h1 ? escHtml(s.h1) : '<span style="color:#64748b">–</span>'}</td>
+        <td style="font-size:12px;max-width:240px;color:#94a3b8">${s.description ? escHtml(s.description) : '<span style="color:#64748b">–</span>'}</td>
       </tr>`;
     }).join('');
   }

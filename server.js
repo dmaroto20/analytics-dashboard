@@ -842,6 +842,112 @@ app.get('/api/decision-matrix', async (req, res) => {
   }
 });
 
+// ── Competitor audit ──────────────────────────────────────────────────────────
+
+const COMPETITORS = [
+  { name: 'Refrigeración Omega', domain: 'refrigeracion-omega.com', isOwn: true },
+  { name: 'RSF', domain: 'rsfcr.com' },
+  { name: 'RCR Refrigeración', domain: 'proyectosrefrigeracion.com' },
+  { name: 'EcoClima CR', domain: 'ecoclimacr.com' },
+  { name: 'Aislamart', domain: 'aislamart.co.cr' },
+  { name: 'Panel Sandwich Group', domain: 'panelsandwich.cr' },
+  { name: 'Equinox CR', domain: 'equinoxcr.com' },
+  { name: 'Froztec', domain: 'froztec.com' },
+  { name: 'Tips CR', domain: 'tipscr.com' },
+  { name: 'Jopco', domain: 'jopco.net' },
+  { name: 'Fulzer', domain: 'fulzer.com' },
+  { name: 'Equipos Nieto', domain: 'equiposnieto.com' },
+  { name: 'Beirute', domain: 'beirute.com' },
+  { name: 'Carbone Store', domain: 'carbonestore.cr' },
+  { name: 'Refrimundo', domain: 'refrimundo.com' },
+  { name: 'Leaho', domain: 'leaho.com' },
+  { name: 'Equipos AB', domain: 'equiposab.com' },
+  { name: 'Electrofrio CR', domain: 'electrofriocr.com' },
+  { name: 'Frio Aire', domain: 'frioaire.com' },
+  { name: 'Restaurant Supply', domain: 'restaurantsupply.com' },
+  { name: 'Webstaurant Store', domain: 'webstaurantstore.com' },
+  { name: 'Cuesa Construcciones', domain: 'cuesacr.com' }
+];
+
+let competitorCache = { data: null, fetchedAt: null };
+
+function extractMeta(html, domain) {
+  const get = (pattern) => { const m = html.match(pattern); return m ? m[1].replace(/<[^>]+>/g, '').trim().substring(0, 160) : null; };
+  const count = (pattern) => (html.match(pattern) || []).length;
+
+  const title       = get(/<title[^>]*>([\s\S]*?)<\/title>/i);
+  const h1          = get(/<h1[^>]*>([\s\S]*?)<\/h1>/i);
+  const description = get(/<meta[^>]*name=["']description["'][^>]*content=["']([^"']{0,300})/i)
+                   || get(/<meta[^>]*content=["']([^"']{0,300})["'][^>]*name=["']description["']/i);
+  const h2Count     = count(/<h2[\s>]/gi);
+  const h3Count     = count(/<h3[\s>]/gi);
+  const hasSchema   = /application\/ld\+json|schema\.org/i.test(html);
+  const hasOG       = /<meta[^>]*property=["']og:/i.test(html);
+  const imgCount    = count(/<img[\s>]/gi);
+  const imgAltMissing = count(/<img(?![^>]*\balt=)[^>]*>/gi);
+  const hasWhatsApp = /whatsapp|wa\.me/i.test(html);
+  const hasPhone    = /tel:|phone|teléfono/i.test(html);
+  const internalLinks = count(new RegExp(`href=["'][^"']*${domain}[^"']*["']`, 'gi'));
+
+  let seoScore = 0;
+  if (title && title.length >= 30 && title.length <= 65) seoScore += 20;
+  else if (title) seoScore += 10;
+  if (h1) seoScore += 20;
+  if (description && description.length >= 100) seoScore += 20;
+  else if (description) seoScore += 10;
+  if (hasSchema) seoScore += 15;
+  if (hasOG) seoScore += 10;
+  if (h2Count >= 2) seoScore += 10;
+  if (imgAltMissing === 0 && imgCount > 0) seoScore += 5;
+
+  return { title, h1, description, h2Count, h3Count, hasSchema, hasOG, imgCount, imgAltMissing, hasWhatsApp, hasPhone, seoScore };
+}
+
+async function auditSite(competitor) {
+  const url = `https://${competitor.domain}`;
+  const start = Date.now();
+  try {
+    const r = await axios.get(url, {
+      timeout: 12000,
+      maxRedirects: 5,
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; OmegaDashBot/1.0)' },
+      validateStatus: s => s < 500
+    });
+    const responseTime = Date.now() - start;
+    const https = url.startsWith('https');
+    const meta = extractMeta(r.data || '', competitor.domain);
+    return { ...competitor, url, https, responseTime, status: r.status, error: null, ...meta, auditedAt: new Date().toISOString() };
+  } catch (err) {
+    return { ...competitor, url, https: true, responseTime: Date.now() - start, status: null, error: err.code || err.message, title: null, h1: null, description: null, h2Count: 0, h3Count: 0, hasSchema: false, hasOG: false, imgCount: 0, imgAltMissing: 0, hasWhatsApp: false, hasPhone: false, seoScore: 0, auditedAt: new Date().toISOString() };
+  }
+}
+
+async function runCompetitorAudit() {
+  const results = [];
+  const batchSize = 4;
+  for (let i = 0; i < COMPETITORS.length; i += batchSize) {
+    const batch = COMPETITORS.slice(i, i + batchSize);
+    const batchResults = await Promise.all(batch.map(auditSite));
+    results.push(...batchResults);
+  }
+  return results;
+}
+
+app.get('/api/competitors', async (req, res) => {
+  const maxAge = 6 * 60 * 60 * 1000; // 6 hours
+  const force = req.query.refresh === '1';
+  if (!force && competitorCache.data && competitorCache.fetchedAt && Date.now() - competitorCache.fetchedAt < maxAge) {
+    return res.json({ data: competitorCache.data, cachedAt: competitorCache.fetchedAt, fromCache: true });
+  }
+  try {
+    const data = await runCompetitorAudit();
+    competitorCache = { data, fetchedAt: Date.now() };
+    res.json({ data, cachedAt: competitorCache.fetchedAt, fromCache: false });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get('/api/keywords', (req, res) => {
   res.json({
     rows: semrushData,
