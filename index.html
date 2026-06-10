@@ -351,6 +351,7 @@
     <button class="nav-tab" type="button" onclick="showTab('audience', this)">Audiencia</button>
     <button class="nav-tab" type="button" onclick="showTab('seo', this)">SEO</button>
     <button class="nav-tab" type="button" onclick="showTab('keywords', this)">Keywords</button>
+    <button class="nav-tab" type="button" onclick="showTab('matrix', this)">Matriz</button>
   </div>
 
   <div class="main">
@@ -668,6 +669,53 @@
           </div>
         </div>
       </section>
+
+      <!-- ── Matriz de decisión ── -->
+      <section class="tab-panel" id="tab-matrix">
+        <div class="section-heading">
+          <div>
+            <div class="section-title-xl">Matriz de decisión</div>
+            <div class="section-desc-xl">Cruza posiciones Semrush con Search Console y sugiere acciones concretas por keyword.</div>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center" id="matrix-filter-btns">
+            <button class="kw-filter active" data-filter="all" onclick="filterMatrix('all',this)">Todas</button>
+            <button class="kw-filter" data-filter="RIESGO" onclick="filterMatrix('RIESGO',this)">🔴 Riesgo</button>
+            <button class="kw-filter" data-filter="URGENTE" onclick="filterMatrix('URGENTE',this)">🟠 Urgente</button>
+            <button class="kw-filter" data-filter="CTR" onclick="filterMatrix('CTR',this)">🟡 Mejorar CTR</button>
+            <button class="kw-filter" data-filter="SEO" onclick="filterMatrix('SEO',this)">🔵 Reforzar SEO</button>
+            <button class="kw-filter" data-filter="PAUTA" onclick="filterMatrix('PAUTA',this)">🟣 Evaluar pauta</button>
+            <button class="kw-filter" data-filter="OK" onclick="filterMatrix('OK',this)">🟢 OK</button>
+          </div>
+        </div>
+
+        <div id="matrix-loading" style="display:none;text-align:center;padding:40px;color:#94a3b8">Cruzando datos de Semrush y Search Console…</div>
+        <div id="matrix-empty" style="display:none;text-align:center;padding:60px 20px;color:#64748b">
+          <div style="font-size:40px;margin-bottom:16px">📊</div>
+          <div style="font-size:16px;font-weight:600;color:#94a3b8;margin-bottom:8px">Sin datos suficientes</div>
+          <div style="font-size:14px">Sube el CSV de Semrush desde el panel admin para activar la matriz.</div>
+        </div>
+
+        <div id="matrix-content" style="display:none">
+          <div id="matrix-meta" style="margin-bottom:20px;padding:14px 18px;background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.2);border-radius:10px;color:#93c5fd;font-size:13px"></div>
+          <div class="card table-card">
+            <div style="overflow-x:auto">
+              <table>
+                <thead><tr>
+                  <th>Keyword</th>
+                  <th>Posición</th>
+                  <th>Cambio</th>
+                  <th>Volumen</th>
+                  <th>Impresiones SC</th>
+                  <th>CTR SC</th>
+                  <th>Acción sugerida</th>
+                </tr></thead>
+                <tbody id="table-matrix"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
     </div>
   </div>
 </div>
@@ -755,6 +803,7 @@
     if (name === 'seo') loadSEO();
     if (name === 'keywords') loadKeywords();
     if (name === 'comparison') loadComparison();
+    if (name === 'matrix') loadMatrix();
   }
 
   function selectPeriod(type, btn) {
@@ -1433,6 +1482,67 @@
     el.style.border = type === 'ok' ? '1px solid rgba(16,185,129,0.3)' : '1px solid rgba(239,68,68,0.3)';
     el.style.color = type === 'ok' ? '#10b981' : '#f87171';
     el.textContent = msg;
+  }
+
+  // ── Matriz de decisión ───────────────────────────────────────────────────
+
+  let matrixData = [];
+
+  const actionColors = {
+    red:    'background:rgba(239,68,68,0.15);color:#f87171',
+    orange: 'background:rgba(249,115,22,0.15);color:#fb923c',
+    yellow: 'background:rgba(234,179,8,0.15);color:#facc15',
+    blue:   'background:rgba(59,130,246,0.15);color:#60a5fa',
+    purple: 'background:rgba(168,85,247,0.15);color:#c084fc',
+    green:  'background:rgba(16,185,129,0.15);color:#34d399',
+    gray:   'background:rgba(100,116,139,0.15);color:#94a3b8'
+  };
+
+  async function loadMatrix() {
+    document.getElementById('matrix-loading').style.display = 'block';
+    document.getElementById('matrix-empty').style.display = 'none';
+    document.getElementById('matrix-content').style.display = 'none';
+    try {
+      matrixData = await apiFetch('/api/decision-matrix');
+      if (!matrixData.length) { document.getElementById('matrix-empty').style.display = 'block'; return; }
+      const meta = document.getElementById('matrix-meta');
+      const scCount = matrixData.filter(r => r.sc).length;
+      meta.textContent = `${matrixData.length} keywords analizadas · ${scCount} con datos de Search Console · Ordenadas por prioridad`;
+      renderMatrixTable(matrixData);
+      document.getElementById('matrix-content').style.display = 'block';
+    } catch (err) {
+      document.getElementById('matrix-empty').style.display = 'block';
+      document.getElementById('matrix-empty').querySelector('div:last-child').textContent = 'Error: ' + err.message;
+    } finally {
+      document.getElementById('matrix-loading').style.display = 'none';
+    }
+  }
+
+  function filterMatrix(type, btn) {
+    document.querySelectorAll('#matrix-filter-btns .kw-filter').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const rows = type === 'all' ? matrixData : matrixData.filter(r => r.actions.some(a => a.type === type));
+    renderMatrixTable(rows);
+  }
+
+  function renderMatrixTable(rows) {
+    const tbody = document.getElementById('table-matrix');
+    if (!rows.length) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#64748b;padding:24px">Sin keywords para este filtro</td></tr>'; return; }
+    tbody.innerHTML = rows.map(r => {
+      const chg = r.change;
+      const chgText = chg === null ? '–' : chg > 0 ? `▲ ${chg}` : chg < 0 ? `▼ ${Math.abs(chg)}` : '=';
+      const chgCls  = chg === null ? 'change-flat' : chg > 0 ? 'change-up' : chg < 0 ? 'change-down' : 'change-flat';
+      const badges  = r.actions.map(a => `<span style="display:inline-block;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600;margin:2px;${actionColors[a.color]}">${a.label}</span>`).join('');
+      return `<tr>
+        <td style="font-weight:500">${escHtml(r.keyword)}</td>
+        <td>${posBadge(r.position)}</td>
+        <td><span class="${chgCls}">${chgText}</span></td>
+        <td>${r.volume ? r.volume.toLocaleString() : '–'}</td>
+        <td>${r.sc ? r.sc.impressions.toLocaleString() : '–'}</td>
+        <td>${r.sc ? r.sc.ctr + '%' : '–'}</td>
+        <td>${badges}</td>
+      </tr>`;
+    }).join('');
   }
 
   // ── Admin panel init ──────────────────────────────────────────────────────

@@ -784,6 +784,64 @@ app.post('/admin/upload', async (req, res) => {
   }
 });
 
+// ── Decision matrix ───────────────────────────────────────────────────────────
+
+app.get('/api/decision-matrix', async (req, res) => {
+  try {
+    // Fetch SC queries for last 30 days
+    let scMap = {};
+    if (SEARCH_CONSOLE_SITE_URL) {
+      try {
+        const end = new Date(); end.setDate(end.getDate() - 3);
+        const start = new Date(end); start.setDate(start.getDate() - 30);
+        const fmt = d => d.toISOString().split('T')[0];
+        const token = await getSearchConsoleAccessToken();
+        const encodedSite = encodeURIComponent(SEARCH_CONSOLE_SITE_URL);
+        const scRes = await axios.post(
+          `https://www.googleapis.com/webmasters/v3/sites/${encodedSite}/searchAnalytics/query`,
+          { startDate: fmt(start), endDate: fmt(end), dimensions: ['query'], rowLimit: 500, dataState: 'all' },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        (scRes.data.rows || []).forEach(r => {
+          scMap[r.keys[0].toLowerCase()] = {
+            clicks: r.clicks,
+            impressions: r.impressions,
+            ctr: Number((r.ctr * 100).toFixed(2)),
+            scPosition: Number(r.position.toFixed(1))
+          };
+        });
+      } catch {}
+    }
+
+    const rows = semrushData.map(kw => {
+      const sc = scMap[kw.keyword?.toLowerCase()] || null;
+      const actions = [];
+      let priority = 0;
+
+      const pos = kw.position;
+      const change = kw.change;
+      const vol = kw.volume || 0;
+      const impressions = sc?.impressions || 0;
+      const ctr = sc?.ctr ?? null;
+
+      if (change !== null && change <= -3) { actions.push({ type: 'RIESGO', label: 'Perdiendo posiciones', color: 'red' }); priority += 40; }
+      if (pos !== null && pos > 3 && pos <= 10 && change !== null && change <= -2) { actions.push({ type: 'URGENTE', label: 'Bajando cerca del top 3', color: 'red' }); priority += 30; }
+      if (impressions > 50 && ctr !== null && ctr < 3) { actions.push({ type: 'CTR', label: 'Mejorar título/meta', color: 'yellow' }); priority += 20; }
+      if (pos !== null && pos > 3 && pos <= 10 && vol > 30) { actions.push({ type: 'SEO', label: 'Reforzar SEO — cerca del top 3', color: 'blue' }); priority += 15; }
+      if (pos !== null && pos > 10 && (vol > 50 || impressions > 100)) { actions.push({ type: 'PAUTA', label: 'Evaluar pauta temporal', color: 'purple' }); priority += 12; }
+      if (pos !== null && pos <= 3 && (change === null || change >= 0)) { actions.push({ type: 'OK', label: 'Mantener', color: 'green' }); priority += 2; }
+      if (actions.length === 0) { actions.push({ type: 'MONITOREAR', label: 'Monitorear', color: 'gray' }); }
+
+      return { keyword: kw.keyword, position: pos, change, volume: vol, landing: kw.landing || null, month: kw.month || null, sc, actions, priority };
+    });
+
+    rows.sort((a, b) => b.priority - a.priority);
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get('/api/keywords', (req, res) => {
   res.json({
     rows: semrushData,
