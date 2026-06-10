@@ -1001,6 +1001,31 @@ const COMPETITORS = [
   }
 ];
 
+const COMPETITOR_USPS = {
+  'refrigeracion-omega.com': 'Fabricación propia · 8 sucursales nacionales · catálogo más completo del mercado CR',
+  'rsfcr.com':               'Ingeniería HVAC especializada — reputación técnica en proyectos industriales grandes',
+  'proyectosrefrigeracion.com': 'Proyectos llave en mano a escala regional (CR · México · Guatemala)',
+  'ecoclimacr.com':          'Único especialista en refrigerantes ecológicos CO2/R-290 en Costa Rica',
+  'aislamart.co.cr':         'Distribuidor exclusivo Globe Italia + stock inmediato en Heredia',
+  'panelsandwich.cr':        'Máxima especialización en paneles sandwich frigoríficos',
+  'equinoxcr.com':           'Fabricación en acero inoxidable a medida para industria alimentaria',
+  'cuesacr.com':             'Construcción frigorífica industrial — relaciones B2B de largo plazo',
+  'froztec.com':             'Referente mundial de cuartos fríos industriales a gran escala',
+  'tipscr.com':              'Más de 6,000 productos HORECA online + marca propia U-Star',
+  'beirute.com':             'Mayor reconocimiento de marca masivo en CR + volumen y variedad',
+  'jopco.net':               'Blog SEO activo + especialización en HORECA con Atosa, Imbera y Fagor',
+  'fulzer.com':              'Marca True (segmento premium) + fabricación propia inox para grandes cadenas',
+  'carbonestore.cr':         'E-commerce en crecimiento con catálogo digital competitivo',
+  'leaho.com':               'Tienda online HORECA con buena experiencia de usuario',
+  'electrofriocr.com':       'Más de 30 años de trayectoria + distribuidor exclusivo Fogel',
+  'equiposnieto.com':        'Venta local de cocina y refrigeración comercial en Costa Rica',
+  'refrimundo.com':          'Especialización en servicio técnico de refrigeración',
+  'equiposab.com':           'Acceso local a equipos gastronómicos básicos a precio accesible',
+  'frioaire.com':            'Distribución y cobertura regional en varios países de Latinoamérica',
+  'restaurantsupply.com':    'Benchmark global e-commerce — catálogo masivo de restaurantes USA',
+  'webstaurantstore.com':    'Líder mundial online de equipos para restaurantes — millones de productos'
+};
+
 let competitorCache = { data: null, fetchedAt: null };
 
 function extractMeta(html, domain) {
@@ -1048,9 +1073,11 @@ async function auditSite(competitor) {
     const responseTime = Date.now() - start;
     const https = url.startsWith('https');
     const meta = extractMeta(r.data || '', competitor.domain);
-    return { ...competitor, url, https, responseTime, status: r.status, error: null, ...meta, auditedAt: new Date().toISOString() };
+    const usp = COMPETITOR_USPS[competitor.domain] || null;
+    return { ...competitor, url, https, responseTime, status: r.status, error: null, ...meta, usp, auditedAt: new Date().toISOString() };
   } catch (err) {
-    return { ...competitor, url, https: true, responseTime: Date.now() - start, status: null, error: err.code || err.message, title: null, h1: null, description: null, h2Count: 0, h3Count: 0, hasSchema: false, hasOG: false, imgCount: 0, imgAltMissing: 0, hasWhatsApp: false, hasPhone: false, seoScore: 0, auditedAt: new Date().toISOString() };
+    const usp = COMPETITOR_USPS[competitor.domain] || null;
+    return { ...competitor, url, https: true, responseTime: Date.now() - start, status: null, error: err.code || err.message, title: null, h1: null, description: null, h2Count: 0, h3Count: 0, hasSchema: false, hasOG: false, imgCount: 0, imgAltMissing: 0, hasWhatsApp: false, hasPhone: false, seoScore: 0, usp, auditedAt: new Date().toISOString() };
   }
 }
 
